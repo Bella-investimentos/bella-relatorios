@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 from mangum import Mangum
-from portfolio_api.api.main import app
+from src.api.main import app
 
 # Handler para Lambda
 handler = Mangum(app, lifespan="off")
