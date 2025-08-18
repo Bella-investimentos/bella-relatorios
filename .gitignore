@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.vscode/
+*.log
+charts/
+*api_key*
+*.key
