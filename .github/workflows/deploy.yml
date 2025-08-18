@@ -37,5 +37,6 @@ jobs:
             docker run -d \
               --name bella-investimentos-image \
               -p 8080:8080 \
+              -e FMP_API_KEY="${{ secrets.FMP_API_KEY }}" \
               bella-investimentos-image
           EOF
