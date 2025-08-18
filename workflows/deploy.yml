@@ -1,0 +1,41 @@
+name: Deploy Docker to EC2
+
+on:
+  push:
+    branches:
+      - deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: docker build -t bella-investimentos-image .
+
+      - name: Save Docker image to tar
+        run: docker save bella-investimentos-image -o bella-investimentos-image.tar
+
+      - name: Create SSH key file
+        run: |
+          echo "${{ secrets.EC2_KEY }}" > bella-key.pem
+          chmod 600 bella-key.pem
+
+      - name: Copy image to EC2
+        run: |
+          scp -i bella-key.pem -o StrictHostKeyChecking=no bella-investimentos-image.tar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~
+
+      - name: Load and run Docker image on EC2
+        run: |
+          ssh -i bella-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            docker load -i bella-investimentos-image.tar
+            docker stop bella-investimentos-image || true
+            docker rm bella-investimentos-image || true
+            docker run -d \
+              --name bella-investimentos-image \
+              -p 8080:8080 \
+              bella-investimentos-image
+          EOF
