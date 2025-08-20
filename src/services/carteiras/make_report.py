@@ -13,8 +13,7 @@ from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
 import pandas as pd
 import tempfile
-from weasyprint import HTML
-
+from src.services.carteiras.pdf_generator import generate_pdf_buffer
 
 # =========================
 # Config / Env
@@ -471,8 +470,35 @@ import shutil
 import subprocess
 
 def html_to_pdf_from_string(html_content: str) -> bytes:
-    pdf = HTML(string=html_content).write_pdf()
-    return pdf
+    """
+    Converte HTML para PDF usando Playwright Chromium headless.
+    Retorna o PDF como bytes.
+    """
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content(html_content, wait_until="networkidle")
+        pdf_bytes = page.pdf(format="A4", margin={"top": "1cm", "bottom": "1cm"})
+        browser.close()
+    return pdf_bytes
+
+
+def link_callback(uri, rel, base_url):
+    """
+    Callback para imagens e CSS externas.
+    """
+    import os
+    if base_url:
+        if uri.startswith("http://") or uri.startswith("https://"):
+            return uri
+        path = os.path.join(base_url, uri)
+        if os.path.isfile(path):
+            return path
+        else:
+            raise Exception(f"Arquivo não encontrado: {path}")
+    return uri
+
+
 
 def render_report(
     investor: str,
@@ -597,7 +623,11 @@ def build_report_from_payload(payload: Dict[str, Any]) -> str:
         )
 
     # Renderiza e exporta
-    html_str = render_report(investor, bonds, stocks, etfs, etfs_op, etfs_af, opp_stocks=opp_stocks, cryptos=cryptos, real_estates=real_estates)
-    pdf_bytes = html_to_pdf_from_string(html_str)
-    return pdf_bytes
+    pdf_buffer = generate_pdf_buffer(
+    investor="João Rizzo",
+    bonds=bonds,
+    stocks=stocks,
+    etfs=etfs
+)
+    return pdf_buffer
 

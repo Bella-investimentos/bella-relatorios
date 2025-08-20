@@ -27,8 +27,7 @@ def health_check():
 
 @app.post("/generate-report")
 def generate_report(payload: ClienteRelatorioPayload):
-    pdf_bytes = build_report_from_payload(payload.dict())
-    pdf_buffer = BytesIO(pdf_bytes)
+    pdf_buffer = build_report_from_payload(payload.dict())
 
     return StreamingResponse(
         pdf_buffer,
