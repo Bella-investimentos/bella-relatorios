@@ -10,7 +10,7 @@ from src.services.carteiras.make_report import build_report_from_payload
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Portfolio API", version="1.0.0")
+app = FastAPI(title="Portfolio API", version="1.0.1")
 
 # CORS middleware for frontend integration
 app.add_middleware(
