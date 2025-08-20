@@ -23,7 +23,7 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "message": "API is running properly - Version 1.0.0"}
+    return {"status": "healthy", "message": "API is running properly - Version 1.0.1"}
 
 @app.post("/generate-report")
 def generate_report(payload: ClienteRelatorioPayload):
