@@ -3,7 +3,9 @@ import shutil
 import subprocess
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-
+import os
+import shutil
+import subprocess
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -26,33 +28,45 @@ FMP_API_KEY = os.getenv("FMP_API_KEY")
 # =========================
 def calculate_technical_indicators(bars: List[Any]):
     """
-    Calcula indicadores técnicos (EMA20, EMA200) a partir dos dados históricos.
-    Retorna (ema20, ema200, df). Se dados insuficientes, retorna (None, None, DataFrame vazio).
+    Calcula indicadores técnicos (EMA10, EMA20, EMA200) a partir dos dados históricos.
+    Retorna (ema10, ema20, ema200, df).
+    Se dados insuficientes, retorna (None, None, None, DataFrame vazio).
     """
-    if not bars or len(bars) < 20:  # Mínimo para EMA20
-        return None, None, pd.DataFrame()
+    if not bars or len(bars) < 10:  # Mínimo para EMA10
+        return None, None, None, pd.DataFrame()
 
     df = pd.DataFrame([{'date': bar.date, 'close': bar.close} for bar in bars])
     df.set_index('date', inplace=True)
-    df['ema_20'] = df['close'].ewm(span=20).mean()
-    ema_20_value = float(df['ema_20'].iloc[-1])
 
+    # EMA10
+    df['ema_10'] = df['close'].ewm(span=10).mean()
+    ema_10_value = float(df['ema_10'].iloc[-1])
+
+    # EMA20
+    if len(bars) >= 20:
+        df['ema_20'] = df['close'].ewm(span=20).mean()
+        ema_20_value = float(df['ema_20'].iloc[-1])
+    else:
+        ema_20_value = None
+
+    # EMA200
     if len(bars) >= 200:
         df['ema_200'] = df['close'].ewm(span=200).mean()
         ema_200_value = float(df['ema_200'].iloc[-1])
     else:
         ema_200_value = None
 
-    return ema_20_value, ema_200_value, df
+    return ema_10_value, ema_20_value, ema_200_value, df
+
 
 
 def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[float], outdir="templates/static"):
     """
-    Gera gráfico SEMANAL com EMA20/EMA200.
+    Gera gráfico SEMANAL com EMA10, EMA20 e EMA200.
     Retorna caminho absoluto do PNG ou None se dados insuficientes.
     """
-    if not weekly_bars or len(weekly_bars) < 20:
-        print(f"⚠️ Dados semanais insuficientes para {symbol} (mín. 20 candles).")
+    if not weekly_bars or len(weekly_bars) < 10:
+        print(f"⚠️ Dados semanais insuficientes para {symbol} (mín. 10 candles).")
         return None
 
     # DataFrame semanal
@@ -61,8 +75,12 @@ def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[f
     df = df.set_index('date').sort_index()
 
     # EMAs semanais
+    df['ema_10'] = df['close'].ewm(span=10, adjust=False).mean()
+    ema_10_value = float(df['ema_10'].iloc[-1])
+
     df['ema_20'] = df['close'].ewm(span=20, adjust=False).mean()
     ema_20_value = float(df['ema_20'].iloc[-1])
+
     ema_200_value = None
     if len(df) >= 200:
         df['ema_200'] = df['close'].ewm(span=200, adjust=False).mean()
@@ -81,12 +99,15 @@ def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[f
     if target_price is not None:
         plt.axhline(y=target_price, color='#C73E1D', linestyle='-.', linewidth=2, label=f'Preço alvo: ${target_price:.2f}')
 
+    # EMA10
+    plt.plot(df.index, df['ema_10'], label=f'EMA10: ${ema_10_value:.2f}', linestyle='-', linewidth=1.8, color='#228B22')
+
     # EMA20
-    plt.plot(df.index, df['ema_20'], label=f'Entrada Ideal: ${ema_20_value:.2f}', linestyle='--', linewidth=2, color='#A23B72')
+    plt.plot(df.index, df['ema_20'], label=f'EMA20: ${ema_20_value:.2f}', linestyle='--', linewidth=2, color='#A23B72')
 
     # EMA200 (se disponível)
     if 'ema_200' in df.columns and ema_200_value is not None:
-        plt.plot(df.index, df['ema_200'], label=f'Preço de suporte: ${ema_200_value:.2f}', linestyle=':', linewidth=2, color='#F18F01')
+        plt.plot(df.index, df['ema_200'], label=f'EMA200: ${ema_200_value:.2f}', linestyle=':', linewidth=2, color='#F18F01')
 
     plt.title(f'Análise Técnica - {symbol}', fontsize=14, fontweight='bold')
     ax = plt.gca()
@@ -96,6 +117,7 @@ def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[f
     ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
     ax.tick_params(axis='y', which='both', labelleft=True, labelright=True, left=True, right=True)
     ax.yaxis.set_ticks_position('both')
+
     ax_r = ax.twinx()
     ax_r.set_ylim(ax.get_ylim())
     ax_r.set_yticks(ax.get_yticks())
@@ -117,15 +139,19 @@ def fetch_equity(
     quantity: float,
     is_etf: bool = False,
     antifragile: bool = False,
-    target_price: Optional[float] = None  # ← sem input(); vem do payload
+    target_price: Optional[float] = None,
+    score: str = "–"
 ):
     """
-    Busca preço (FMP), calcula indicadores semanais, dividend yield (FMP/yf),
-    CAGR 10y (yfinance), nome/segmento e gera gráfico semanal.
+    Busca preço (FMP), calcula indicadores semanais, dividend yield (FMP→YF fallback),
+    CAGR 10y (FMP→YF fallback), nome/segmento e gera gráfico semanal.
     Retorna dict pronto para o template.
     """
 
-    # --- helpers ---
+    # ----------------------------
+    # Helpers internos
+    # ----------------------------
+
     def _dividend_yield_fallback(symbol_: str, price_: float | None) -> float | None:
         if price_ is None or price_ <= 0:
             return None
@@ -177,9 +203,34 @@ def fetch_equity(
             pass
         return _dividend_yield_fallback(sym, price__)
 
-    def _cagr_10y(symbol_: str) -> float | None:
+    def _cagr_10y(symbol: str, api_key: Optional[str] = FMP_API_KEY) -> float | None:
+        sym = symbol.strip().upper()
+
+        # --- 1) Tenta via FMP ---
         try:
-            t = yf.Ticker(symbol_)
+            url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{sym}?serietype=line&apikey={api_key}"
+            response = requests.get(url, timeout=20)
+            response.raise_for_status()
+            data = response.json()
+
+            if "historical" in data and len(data["historical"]) > 2:
+                hist = list(reversed(data["historical"]))  # FMP vem invertido
+                first = float(hist[0]["close"])
+                last = float(hist[-1]["close"])
+
+                from datetime import datetime
+                d0 = datetime.strptime(hist[0]["date"], "%Y-%m-%d")
+                d1 = datetime.strptime(hist[-1]["date"], "%Y-%m-%d")
+                years = (d1 - d0).days / 365.25
+
+                if first > 0 and years > 0:
+                    return (last / first) ** (1 / years) - 1.0
+        except Exception as e:
+            print(f"[WARN] FMP CAGR falhou para {sym}: {e}")
+
+        # --- 2) Fallback via Yahoo Finance ---
+        try:
+            t = yf.Ticker(sym)
             hist = t.history(period="10y", interval="1mo", auto_adjust=True)
             if not hist.empty and 'Close' in hist:
                 first = float(hist['Close'].iloc[0])
@@ -187,142 +238,124 @@ def fetch_equity(
                 years = (hist.index[-1] - hist.index[0]).days / 365.25
                 if first > 0 and years > 0:
                     return (last / first) ** (1 / years) - 1.0
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[WARN] YF CAGR falhou para {sym}: {e}")
+
         return None
 
+    # ----------------------------
+    # Corpo principal
+    # ----------------------------
     try:
+        sym = symbol.strip().upper()
+
         # preço atual via FMP
         price_response = requests.get(
-            f"https://financialmodelingprep.com/api/v3/quote/{symbol}?apikey={FMP_API_KEY}",
+            f"https://financialmodelingprep.com/api/v3/quote/{sym}?apikey={FMP_API_KEY}",
             timeout=20
         )
-        if not price_response.ok:
-            raise ValueError(f"Erro ao buscar preço para {symbol}")
+        price_response.raise_for_status()
         price_data = price_response.json()
         if not isinstance(price_data, list) or not price_data:
-            raise ValueError(f"Dados de preço inválidos para {symbol}")
-        price = price_data[0].get('price')
+            raise ValueError(f"Dados de preço inválidos para {sym}")
+        price = price_data[0].get("price")
         if price is None:
-            raise ValueError(f"Não foi possível obter preço para {symbol}")
+            raise ValueError(f"Não foi possível obter preço para {sym}")
 
-        # barras semanais via FMP (agregadas de diário)
+        # barras semanais via FMP
+        weekly_bars: list = []
         historical_response = requests.get(
-            f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?timeseries=260&apikey={FMP_API_KEY}",
+            f"https://financialmodelingprep.com/api/v3/historical-price-full/{sym}?timeseries=260&apikey={FMP_API_KEY}",
             timeout=20
         )
-        weekly_bars: List[Any] = []
         if historical_response.ok:
             historical_data = historical_response.json()
-            if 'historical' in historical_data:
-                daily_data = historical_data['historical'][::-1]
+            if "historical" in historical_data:
+                daily_data = historical_data["historical"][::-1]
                 if daily_data:
                     df_daily = pd.DataFrame(daily_data)
-                    df_daily['date'] = pd.to_datetime(df_daily['date'])
-                    df_daily = df_daily.set_index('date').sort_index()
-                    for _, week_data in df_daily.groupby(pd.Grouper(freq='W')):
+                    df_daily["date"] = pd.to_datetime(df_daily["date"])
+                    df_daily = df_daily.set_index("date").sort_index()
+                    for _, week_data in df_daily.groupby(pd.Grouper(freq="W")):
                         if not week_data.empty:
-                            bar = type('Bar', (), {
-                                'open': week_data['open'].iloc[0],
-                                'high': week_data['high'].max(),
-                                'low': week_data['low'].min(),
-                                'close': week_data['close'].iloc[-1],
-                                'volume': week_data['volume'].sum(),
-                                'date': week_data.index[-1].strftime('%Y-%m-%d')
+                            bar = type("Bar", (), {
+                                "open": week_data["open"].iloc[0],
+                                "high": week_data["high"].max(),
+                                "low": week_data["low"].min(),
+                                "close": week_data["close"].iloc[-1],
+                                "volume": week_data["volume"].sum(),
+                                "date": week_data.index[-1].strftime("%Y-%m-%d")
                             })()
                             weekly_bars.append(bar)
 
         # dividend yield
-        div_yield = None
-        try:
-            r = requests.get(
-                f"https://financialmodelingprep.com/api/v3/profile/{symbol}?apikey={FMP_API_KEY}",
-                timeout=20
-            )
-            if r.ok:
-                data = r.json()
-                if isinstance(data, list) and data:
-                    val = data[0].get("dividendYieldTTM")
-                    if val is not None:
-                        div_yield = float(val)
-                    elif data[0].get("lastDiv") and price:
-                        div_yield = float(data[0]["lastDiv"]) / float(price)
-        except Exception:
-            pass
-        if div_yield is None:
-            div_yield = _dividend_yield_fallback(symbol, price)
+        div_yield = dividend_yield_calc(sym, price)
 
-        # nome/setor via FMP, fallback yfinance
-        company_name = None
-        sector = None
+        # nome e setor
+        company_name, sector = None, None
         try:
             r = requests.get(
-                f"https://financialmodelingprep.com/api/v3/profile/{symbol}?apikey={FMP_API_KEY}",
+                f"https://financialmodelingprep.com/api/v3/profile/{sym}?apikey={FMP_API_KEY}",
                 timeout=20
             )
             if r.ok:
                 data = r.json()
                 if isinstance(data, list) and data:
-                    company_name = data[0].get('companyName')
-                    sector = data[0].get('sector')
+                    company_name = data[0].get("companyName")
+                    sector = data[0].get("sector")
         except Exception:
             pass
         if not company_name or not sector:
             try:
-                info = yf.Ticker(symbol).info
-                company_name = company_name or info.get('longName') or info.get('shortName')
-                sector = sector or info.get('sector')
+                info = yf.Ticker(sym).info
+                company_name = company_name or info.get("longName") or info.get("shortName")
+                sector = sector or info.get("sector")
             except Exception:
                 pass
 
-        # CAGR 10 anos
-        cagr_10y = _cagr_10y(symbol)
+        # CAGR 10y
+        cagr_10y = _cagr_10y(sym)
 
         # EMAs e gráfico
-        ema20, ema200, _ = calculate_technical_indicators(weekly_bars)
-        chart_path = generate_chart(symbol, weekly_bars, target_price)
+        ema10, ema20, ema200, _ = calculate_technical_indicators(weekly_bars)
+        chart_path = generate_chart(sym, weekly_bars, target_price)
 
         inv = float(price) * float(quantity)
 
-        # ETF Anti-Frágil: preço de entrada sugerido = preço * 1,03
         antifragile_entry_price = None
         if is_etf and antifragile and price is not None:
             antifragile_entry_price = float(price) * 1.03
 
         return {
-            'symbol': symbol,
-            'unit_price': float(price),
-            'unitPrice': float(price),
-            'quantity': float(quantity),
-
-            'target_price': target_price,
-            'targetPrice': target_price,
-
-            'dividend_yield': div_yield,
-            'dividendYield': div_yield,
-
-            'investment': inv,
-            'type': 'ETF' if is_etf else 'STOCK',
-            'company_name': company_name,
-            'sector': sector,
-
-            'chart': chart_path,
-
-            'ema_20': ema20,
-            'ema20': ema20,
-            'ema_200': ema200,
-            'ema200': ema200,
-
-            'average_growth': round(cagr_10y * 100, 1) if cagr_10y is not None else None,
-            'averageGrowth': round(cagr_10y * 100, 1) if cagr_10y is not None else None,
-
-            'antifragile_entry_price': round(antifragile_entry_price, 4) if antifragile_entry_price else None,
-            'antifragileEntryPrice': round(antifragile_entry_price, 4) if antifragile_entry_price else None,
+            "symbol": sym,
+            "unit_price": float(price),
+            "unitPrice": float(price),
+            "quantity": float(quantity),
+            "target_price": target_price,
+            "targetPrice": target_price,
+            "score": score,
+            "dividend_yield": div_yield,
+            "dividendYield": div_yield,
+            "investment": inv,
+            "type": "ETF" if is_etf else "STOCK",
+            "company_name": company_name,
+            "sector": sector,
+            "chart": chart_path,
+            "ema_10": ema10,
+            "ema10": ema10,
+            "ema_20": ema20,
+            "ema20": ema20,
+            "ema_200": ema200,
+            "ema200": ema200,
+            "average_growth": round(cagr_10y * 100, 1) if cagr_10y is not None else None,
+            "averageGrowth": round(cagr_10y * 100, 1) if cagr_10y is not None else None,
+            "antifragile_entry_price": round(antifragile_entry_price, 4) if antifragile_entry_price else None,
+            "antifragileEntryPrice": round(antifragile_entry_price, 4) if antifragile_entry_price else None,
         }
 
     except Exception as e:
-        raise e
-
+        print(f"[ERRO] fetch_equity falhou para {symbol}: {e}")
+        raise
 
 def fetch_crypto(
     symbol: str,
@@ -347,7 +380,6 @@ def fetch_crypto(
                         return float(s.iloc[-1])
             except Exception:
                 pass
-        # fast_info
         try:
             fi = getattr(t, "fast_info", None)
             lp = getattr(fi, "last_price", None) if fi is not None else None
@@ -355,7 +387,6 @@ def fetch_crypto(
                 return float(lp)
         except Exception:
             pass
-        # info
         try:
             info = t.info
             rmp = info.get("regularMarketPrice")
@@ -369,7 +400,6 @@ def fetch_crypto(
         api = os.getenv("FMP_API_KEY")
         if not api:
             return None
-        # BTC-USD -> BTCUSD (formato da FMP)
         fmp_sym = sym.replace("-", "")
         try:
             url = f"https://financialmodelingprep.com/api/v3/quote/{fmp_sym}?apikey={api}"
@@ -383,7 +413,7 @@ def fetch_crypto(
         return None
 
     def _coingecko_price(sym: str) -> Optional[float]:
-        # mapeia alguns tickers comuns
+    
         mapping = {
             "BTC-USD": "bitcoin",
             "ETH-USD": "ethereum",
@@ -393,7 +423,7 @@ def fetch_crypto(
         }
         cg_id = mapping.get(sym.upper())
         if not cg_id:
-            # heurística simples: tira sufixo -USD e baixa
+            
             cg_id = sym.split("-")[0].lower()
         try:
             url = f"https://api.coingecko.com/api/v3/simple/price"
@@ -425,7 +455,6 @@ def fetch_crypto(
     except Exception as e:
         raise RuntimeError(f"Falha ao obter dados da criptomoeda {symbol}: {e}")
 
-
 def make_real_estate_position(name: str, invested_value: float, appreciation: float):
     """
     Cria registro de 'Imóveis'.
@@ -444,6 +473,7 @@ def make_real_estate_position(name: str, invested_value: float, appreciation: fl
         'quantity': None,
         'target_price': None,
         'targetPrice': None,
+        'score': None,
         'dividend_yield': None,
         'dividendYield': None,
         'investment': float(invested_value),
@@ -451,23 +481,19 @@ def make_real_estate_position(name: str, invested_value: float, appreciation: fl
         'company_name': None,
         'sector': 'Real Estate',
         'chart': None,
+        'ema_10': None,
+        'ema10': None,
         'ema_20': None,
         'ema20': None,
         'ema_200': None,
         'ema200': None,
         'average_growth': None,
         'averageGrowth': None,
-
         'appreciation_pct': appr,
         'appreciationPct': appr,
         'current_value': round(current_value, 2),
         'currentValue': round(current_value, 2),
     }
-
-
-import os
-import shutil
-import subprocess
 
 def html_to_pdf_from_string(html_content: str) -> bytes:
     """
@@ -481,7 +507,6 @@ def html_to_pdf_from_string(html_content: str) -> bytes:
         pdf_bytes = page.pdf(format="A4", margin={"top": "1cm", "bottom": "1cm"})
         browser.close()
     return pdf_bytes
-
 
 def link_callback(uri, rel, base_url):
     """
@@ -498,8 +523,6 @@ def link_callback(uri, rel, base_url):
             raise Exception(f"Arquivo não encontrado: {path}")
     return uri
 
-
-
 def render_report(
     investor: str,
     bonds: List[Dict[str, Any]],
@@ -510,7 +533,7 @@ def render_report(
     opp_stocks: Optional[List[Dict[str, Any]]] = None,
     cryptos: Optional[List[Dict[str, Any]]] = None,
     real_estates: Optional[List[Dict[str, Any]]] = None
-) -> str:  # agora retorna string
+) -> str:  
     date = datetime.now().strftime('%d/%m/%Y')
     opp_stocks = opp_stocks or []
     etfs_op = etfs_op or []
@@ -588,7 +611,11 @@ def build_report_from_payload(payload: Dict[str, Any]) -> str:
             qty = float(it["quantity"])
             tp = it.get("target_price")
             tp = float(tp) if tp is not None else None
-            out.append(fetch_equity(sym, qty, is_etf=is_etf, antifragile=antifragile, target_price=tp))
+            score = it.get("score")
+            score = float(score) if score is not None else None
+            
+            out.append(fetch_equity(sym, qty, is_etf=is_etf, antifragile=antifragile, 
+                                target_price=tp, score=score))  
         return out
 
     stocks = _mk_equities(payload.get("stocks"), is_etf=False)
@@ -624,10 +651,15 @@ def build_report_from_payload(payload: Dict[str, Any]) -> str:
 
     # Renderiza e exporta
     pdf_buffer = generate_pdf_buffer(
-    investor="João Rizzo",
+    investor=investor,
     bonds=bonds,
     stocks=stocks,
-    etfs=etfs
+    etfs=etfs,
+    etfs_op=etfs_op,
+    etfs_af=etfs_af,
+    opp_stocks=opp_stocks,
+    cryptos=cryptos,
+    real_estates=real_estates
 )
     return pdf_buffer
 
