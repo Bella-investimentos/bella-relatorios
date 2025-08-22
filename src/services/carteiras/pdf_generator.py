@@ -2,18 +2,20 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    Image
+    Image, PageBreak, KeepTogether
 )
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from io import BytesIO
 import os
 from datetime import date
+from datetime import datetime
+import pytz
 import locale
 import tempfile
 
 def is_safe_path(base_path: str, file_path: str) -> bool:
-    """Verifica se o caminho do arquivo está dentro do diretório base."""
+   
     if not file_path:
         return False
     try:
@@ -34,9 +36,7 @@ def generate_pdf_buffer(
     cryptos: list = None,
     real_estates: list = None
 ):
-    """
-    Gera um relatório de carteira de investimentos em formato PDF.
-    """
+    
     bonds = bonds or []
     stocks = stocks or []
     etfs = etfs or []
@@ -48,34 +48,105 @@ def generate_pdf_buffer(
 
     buffer = BytesIO()
     
-    # === Definição de Estilos para ReportLab ===
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='TitleStyle', fontSize=18, alignment=1, spaceAfter=10, textColor=colors.blue))
-    styles.add(ParagraphStyle(name='SubtitleStyle', fontSize=14, alignment=1, spaceAfter=20))
-    styles.add(ParagraphStyle(name='MyHeading2', fontSize=14, leading=16, spaceBefore=20, spaceAfter=10, textColor=colors.black))
-    styles.add(ParagraphStyle(name='NormalJustify', alignment=4, spaceAfter=10))
-    styles.add(ParagraphStyle(name='Bold', fontName='Helvetica-Bold'))
-    styles.add(ParagraphStyle(name='SmallParagraph', fontSize=8, spaceAfter=5, leading=10, alignment=4))
-    wrap_style = ParagraphStyle(name='WrapStyle', fontSize=9, leading=11, wordWrap='CJK')
-
     
-    table_style = TableStyle([
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('BOX', (0, 0), (-1, -1), 1, colors.black),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f4f4f4')),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
+    styles.add(ParagraphStyle(
+        name='MainTitle', 
+        fontSize=28, 
+        alignment=1, 
+        spaceAfter=20, 
+        textColor=colors.HexColor('#1a365d'),
+        fontName='Helvetica-Bold',
+        leading=32
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='SubTitle', 
+        fontSize=18, 
+        alignment=1, 
+        spaceAfter=30,
+        textColor=colors.HexColor('#2d3748'),
+        fontName='Helvetica-Bold'
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='IntroText', 
+        fontSize=12, 
+        alignment=4, 
+        spaceAfter=15,
+        textColor=colors.HexColor('#4a5568'),
+        leading=18,
+        leftIndent=20,
+        rightIndent=20
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='HighlightBox', 
+        fontSize=14, 
+        alignment=1, 
+        spaceAfter=20,
+        textColor=colors.white,
+        backColor=colors.HexColor('#3182ce'),
+        borderColor=colors.HexColor('#2c5aa0'),
+        borderWidth=1,
+        leading=20,
+        leftIndent=10,
+        rightIndent=10,
+        spaceBefore=10
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='SectionTitle', 
+        fontSize=16, 
+        leading=20, 
+        spaceBefore=30, 
+        spaceAfter=15, 
+        textColor=colors.HexColor('#1a365d'),
+        fontName='Helvetica-Bold',
+        borderColor=colors.HexColor('#3182ce'),
+        borderWidth=0,
+        leftIndent=0
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='AssetName', 
+        fontSize=12, 
+        fontName='Helvetica-Bold',
+        textColor=colors.HexColor('#2d3748'),
+        spaceAfter=5
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='AssetDetail', 
+        fontSize=10, 
+        textColor=colors.HexColor('#4a5568'),
+        leftIndent=20,
+        spaceAfter=3
+    ))
+    
+    styles.add(ParagraphStyle(
+        name='DateStyle', 
+        fontSize=10, 
+        alignment=2, 
+        textColor=colors.HexColor('#718096'),
+        spaceAfter=30
+    ))
+
+    row_table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f7fafc')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2d3748')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),  
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
     ])
 
-    total_row_style = TableStyle([
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('ALIGN', (0, -1), (-1, -1), 'CENTER'),
-    ])
-
-    # === Funções Auxiliares ===
     def calculate_total(items: list) -> float:
         """Calcula o valor total de uma lista de ativos."""
         if not isinstance(items, list):
@@ -86,13 +157,12 @@ def generate_pdf_buffer(
         """Formata valores numéricos para exibição."""
         if value is None or not isinstance(value, (int, float)):
             return '–'
-        
         if is_percentage:
-            formatted_value = value * 100
-            if formatted_value >= 10:
-                return f"{formatted_value:.2f}%"
+            if abs(value) <= 1:
+                formatted_value = value * 100  
             else:
-                return f"{formatted_value:.1f}%"
+                formatted_value = value      
+            return f"{formatted_value:.2f}%"  
         else:
             return f"${value:,.2f}"
 
@@ -100,126 +170,133 @@ def generate_pdf_buffer(
         try:
             target = s.get('target_price')
             unit_price = s.get('unit_price')
-            if target and unit_price and unit_price != 0:
-                return ((target / unit_price) - 1)
+            
+            if target and unit_price  != 0:
+                return ((target / unit_price) - 1) * 100
         except (ZeroDivisionError, TypeError):
             return None
         return None
 
-    def add_asset_section(elements, title, total, assets, headers, col_widths_template, is_stock=True):
-        if not assets:
-            return
-        elements.append(Paragraph(f"{title}: USD {format_value(total, False)}", styles['MyHeading2']))
-
-        asset_data = [headers]
-        for item in assets:
-            if not isinstance(item, dict):
-                continue
-            
-            row = []
-            if 'imoveis' in title.lower():
-                row = [
-                    Paragraph(item.get('symbol', '–'), wrap_style),
-                    Paragraph(format_value(item.get('investment')), wrap_style),
-                    Paragraph(format_value(item.get('appreciation_pct', 0), is_percentage=True), wrap_style),
-                    Paragraph(format_value(item.get('current_value')), wrap_style)
-                ]
-            elif 'criptomoedas' in title.lower():
-                quantity_text = f"{item.get('quantity', 0):.8f}".rstrip('0').rstrip('.') if item.get('quantity') is not None else '–'
-                growth_text = f"{item.get('average_growth', 0):.2f}" if item.get('average_growth') is not None else '–'
-                row = [
-                    Paragraph(item.get('company_name', '–'), wrap_style),
-                    Paragraph(item.get('symbol', '–'), wrap_style),
-                    Paragraph(format_value(item.get('unit_price')), wrap_style),
-                    Paragraph(quantity_text, wrap_style),
-                    Paragraph(format_value(item.get('investment')), wrap_style),
-                    Paragraph(growth_text, wrap_style)
-                ]
-            elif is_stock:
-                growth_pct = get_growth_pct(item)
-                row = [
-                    Paragraph(item.get('company_name', '–'), wrap_style),
-                    Paragraph('D + 1', wrap_style),
-                    Paragraph(item.get('symbol', '–'), wrap_style),
-                    Paragraph(format_value(item.get('unit_price')), wrap_style),
-                    Paragraph(format_value(item.get('ema_20')), wrap_style),
-                    Paragraph(format_value(item.get('target_price')), wrap_style),
-                    Paragraph(format_value(item.get('dividend_yield', 0), is_percentage=True), wrap_style),
-                    Paragraph(str(item.get('quantity', '–')), wrap_style),
-                    Paragraph(format_value(item.get('investment')), wrap_style),
-                    Paragraph(format_value(growth_pct, is_percentage=True), wrap_style)
-                ]
-            elif 'etf' in title.lower():
-                row = [
-                    Paragraph(item.get('company_name', '–'), wrap_style),
-                    Paragraph('D + 1', wrap_style),
-                    Paragraph(item.get('symbol', '–'), wrap_style),
-                    Paragraph(format_value(item.get('unit_price')), wrap_style),
-                    Paragraph(format_value(item.get('ema_20') if 'antifragil' not in title.lower() else item.get('antifragile_entry_price')), wrap_style),
-                    Paragraph(format_value(item.get('dividend_yield', 0), is_percentage=True), wrap_style),
-                    Paragraph(str(item.get('quantity', '–')), wrap_style),
-                    Paragraph(format_value(item.get('investment')), wrap_style),
-                    Paragraph(format_value(item.get('average_growth', 0), is_percentage=True), wrap_style)
-                ]
-            else: # bonds
-                row = [
-                    Paragraph(f"{item.get('name', '')} – cod <font color='red'>{item.get('code', '')}</font>", wrap_style),
-                    Paragraph(item.get('maturity', '–'), wrap_style),
-                    Paragraph(format_value(item.get('unit_price') or item.get('unitPrice')), wrap_style),
-                    Paragraph(format_value(item.get('coupon', 0), is_percentage=True), wrap_style),
-                    Paragraph(str(item.get('quantity', '–')), wrap_style),
-                    Paragraph(format_value(item.get('investment')), wrap_style)
-                ]
-            
-            asset_data.append(row)
-
-        asset_data.append(
-            ['Total ' + title] 
-            + [''] * (len(asset_data[0]) - 2)  # preenche o meio com vazios
-            + [f"USD {format_value(total, False)}"]  # última coluna com o total
-        )
+    def create_asset_card(item, asset_type):
         
-        table = Table(asset_data)
-        table.setStyle(table_style)
-        table.setStyle(total_row_style)
-        table.setStyle(TableStyle([('SPAN', (0, -1), (len(headers) - 2, -1))]))
-        elements.append(table)
+        card_elements = []
         
-        elements.append(Paragraph(f"Resumo dos {title}", styles['MyHeading2']))
-        for item in assets:
-            if not isinstance(item, dict): continue
+        if asset_type == 'real_estates':
+            name = item.get('symbol', 'Imóvel')
+            card_elements.append(Paragraph(f"<b>{name}</b>", styles['AssetName']))
+        else:
+            name = item.get('company_name', item.get('name', '–'))
+            symbol = item.get('symbol', '–')
+            card_elements.append(Paragraph(f"<b>{name}</b> ({symbol})", styles['AssetName']))
+        data_rows = []
+        
+        if asset_type == 'bonds':
+            data_rows = [
+                ['Código:', Paragraph(f"<font color='red'>{item.get('code', '–')}</font>", styles['AssetDetail'])],
+                ['Vencimento:', Paragraph(item.get('maturity', '–'), styles['AssetDetail'])],
+                ['Valor Unitário:', Paragraph(format_value(item.get('unit_price') or item.get('unitPrice')), styles['AssetDetail'])],
+                ['Cupom:', Paragraph(format_value(item.get('coupon', 0), is_percentage=True), styles['AssetDetail'])],
+                ['Quantidade:', Paragraph(str(item.get('quantity', '–')), styles['AssetDetail'])],
+                ['Investimento:', Paragraph(format_value(item.get('investment')), styles['AssetDetail'])],
+            ]
             
-            symbol = item.get('symbol', '')
+            description = item.get('description')
+            if description and isinstance(description, list):
+                desc_text = '<br/>'.join(description)
+                data_rows.append(['Descrição:', Paragraph(desc_text, styles['AssetDetail'])])
+        elif asset_type == 'stocks' or asset_type == 'opp_stocks':
+            growth_pct = get_growth_pct(item)
+            data_rows = [
+                ['Setor:', item.get('sector', 'Indefinido')],
+                ['Valor Atual:', format_value(item.get('unit_price'))],
+                ['Entrada (EMA 10):', format_value(item.get('ema_10'))],
+                ['Entrada (EMA 20):', format_value(item.get('ema_20'))],
+                ['Score:', str(item.get('score', '–'))],
+                ['Meta (Saída):', format_value(item.get('target_price'))],
+                ['Dividend Yield:', format_value(item.get('dividend_yield', 0), is_percentage=True)],
+                ['Quantidade:', str(item.get('quantity', '–'))],
+                ['Investimento:', format_value(item.get('investment'))],
+                ['Potencial Valorização:', format_value(growth_pct, is_percentage=True) if growth_pct else '–'],
+            ]
+        elif 'etf' in asset_type:
+            entry_field = 'antifragile_entry_price' if 'af' in asset_type else 'ema_20'
+            entry_label = 'Entrada (Anti-Frágil):' if 'af' in asset_type else 'Entrada (EMA 20):'
+            data_rows = [
+                ['Valor Atual:', format_value(item.get('unit_price'))],
+                [entry_label, format_value(item.get(entry_field))],
+                ['Dividend Yield:', format_value(item.get('dividend_yield', 0), is_percentage=True)],
+                ['Quantidade:', str(item.get('quantity', '–'))],
+                ['Investimento:', format_value(item.get('investment'))],
+                ['Crescimento Médio Anual:', format_value(item.get('average_growth', 0), is_percentage=True)],
+            ]
+        elif asset_type == 'cryptos':
+            quantity_text = f"{item.get('quantity', 0):.8f}".rstrip('0').rstrip('.') if item.get('quantity') is not None else '–'
+            data_rows = [
+                ['Valor Atual:', format_value(item.get('unit_price'))],
+                ['Quantidade:', quantity_text],
+                ['Investimento:', format_value(item.get('investment'))],
+                ['Valorização Média:', f"{item.get('average_growth', 0):.2f}%" if item.get('average_growth') else '–'],
+            ]
+        elif asset_type == 'real_estates':
+            data_rows = [
+                ['Valor Investido:', format_value(item.get('investment'))],
+                ['Valorização:', format_value(item.get('appreciation_pct', 0), is_percentage=True)],
+                ['Valor Atual:', format_value(item.get('current_value'))],
+            ]
+        
+        if data_rows:
+            has_description = any('Descrição:' in str(row[0]) for row in data_rows)
+            if has_description:
+                table = Table(data_rows, colWidths=[1.5*inch, 4*inch])
+            else:
+                table = Table(data_rows, colWidths=[2*inch, 2*inch])
+            table.setStyle(row_table_style)
+            card_elements.append(table)
+            card_elements.append(Spacer(1, 10))  
+        
+        if asset_type in ['stocks', 'opp_stocks']:
             sector = item.get('sector', 'Indefinido')
+            ema_10 = format_value(item.get('ema_10'))
             ema_20 = format_value(item.get('ema_20'))
             target_price = format_value(item.get('target_price'))
             dividend_yield_text = format_value(item.get('dividend_yield', 0), is_percentage=True)
             
-            if is_stock:
-                elements.append(Paragraph(f"""
-                    A ação <strong>{symbol}</strong> pertence ao setor de <strong>{sector}</strong>,
-                    o preço ideal de entrada é <strong>USD {ema_20}</strong>,
-                    e possui uma expectativa que alcance <strong>USD {target_price}</strong>.
-                    Distribuindo dividendos anuais de {dividend_yield_text}.
-                """, styles['NormalJustify']))
-            else:
-                growth_text = "dados históricos insuficientes"
-                avg_growth = item.get('average_growth')
-                if avg_growth is not None:
-                    growth_text = f"crescimento médio anual de {format_value(avg_growth, is_percentage=True)} com base nos últimos 10 anos"
-                
-                elements.append(Paragraph(f"""
-                    <strong>{symbol}</strong> – {item.get('company_name', '')} possui um
-                    dividend yield de {dividend_yield_text} ao ano, o preço ideal de entrada é <strong>USD {ema_20}</strong>,
-                    e {growth_text}.
-                """, styles['NormalJustify']))
+            analysis = f"""A ação <b>{symbol}</b> do setor <b>{sector}</b> tem entrada recomendada 
+                          para um perfil moderado em <b>{ema_20}</b> e entrada recomendada para 
+                          um perfil agressivo em <b>{ema_10}.</b> Com expectativa de atingir <b>{target_price}</b>. 
+                          Dividend yield anual de <b>{dividend_yield_text}</b>."""
             
-            chart_path = item.get('chart')
-            if chart_path and is_safe_path('.', chart_path) and os.path.exists(chart_path):
-                elements.append(Image(chart_path, width=6*inch, height=3*inch))
-            elements.append(Spacer(1, 0.2 * inch))
+            card_elements.append(Paragraph(analysis, styles['AssetDetail']))
+            card_elements.append(Spacer(1, 20))  # 20px após a análise
 
-    # === Dados para o PDF ===
+        chart_path = item.get('chart')
+        if chart_path and is_safe_path('.', chart_path) and os.path.exists(chart_path):
+            card_elements.append(Spacer(1, 20))  # 20px antes do gráfico
+            card_elements.append(Image(chart_path, width=6*inch, height=3*inch))
+            card_elements.append(Spacer(1, 10))  # 10px após o gráfico
+
+        card_elements.append(Spacer(1, 0.3 * inch))
+        return card_elements
+
+    def add_asset_section(elements, title, total, assets, asset_type):
+        """Adiciona uma seção de ativos com layout em cards."""
+        if not assets:
+            return
+        
+        elements.append(Paragraph(f"{title}", styles['SectionTitle']))
+        
+        total_box = f"<b>Investimento Total: {format_value(total)}</b>"
+        elements.append(Paragraph(total_box, styles['HighlightBox']))
+        
+        for item in assets:
+            if not isinstance(item, dict):
+                continue
+            
+            asset_card = create_asset_card(item, asset_type)
+            
+            card_group = KeepTogether(asset_card)
+            elements.append(card_group)
+
     total_value = (
         calculate_total(bonds) + calculate_total(stocks) + calculate_total(etfs) +
         calculate_total(etfs_op) + calculate_total(etfs_af) +
@@ -227,118 +304,71 @@ def generate_pdf_buffer(
         calculate_total(real_estates)
     )
 
-    data = {
-        'investor': investor,
-        'date': date.today().strftime("%d/%m/%Y"),
-        'total_value': total_value,
-        'bonds_total': calculate_total(bonds),
-        'stocks_total': calculate_total(stocks),
-        'etfs_total': calculate_total(etfs),
-        'etfs_op_total': calculate_total(etfs_op),
-        'etfs_af_total': calculate_total(etfs_af),
-        'opp_stocks_total': calculate_total(opp_stocks),
-        'cryptos_total': calculate_total(cryptos),
-        'real_estates_total': calculate_total(real_estates),
-        'bonds': bonds, 'stocks': stocks, 'etfs': etfs,
-        'etfs_op': etfs_op, 'etfs_af': etfs_af,
-        'opp_stocks': opp_stocks, 'cryptos': cryptos,
-        'real_estates': real_estates,
-    }
-
-    # === Construção do conteúdo do PDF ===
     elements = []
-
-    elements.append(Paragraph("Bella Investimentos", styles['TitleStyle']))
-    elements.append(Paragraph(f"Carteira {data['investor']}", styles['SubtitleStyle']))
-    elements.append(Paragraph(f"""
-        A proposta é baseada em uma carteira em dólares, no valor de <strong>USD {format_value(data['total_value'])}</strong>.
-        A alocação dos ativos foi cuidadosamente estruturada de acordo com o seu perfil de investidor,
-        priorizando a valorização e a preservação de capital.
-    """, styles['NormalJustify']))
-    elements.append(Paragraph("""
-        Para facilitar a compra dos ativos na sua corretora, destacamos em vermelho os códigos dos ativos,
-        tornando mais simples a pesquisa e execução das ordens.
-    """, styles['NormalJustify']))
-    elements.append(Paragraph(f"Data do relatório: {data['date']}", styles['Normal']))
-
-    # --- Seções de Ativos ---
-    add_asset_section(elements, 'Bonds', data['bonds_total'], data['bonds'],
-                      ['Nome', 'Vencimento', 'Valor Unid.', 'Cupom', 'Qtd.', 'Investimento'],
-                      [1*inch, 1*inch, 1*inch, 0.7*inch, 0.7*inch, 1*inch], is_stock=False)
-
-    add_asset_section(elements, 'Ações', data['stocks_total'], data['stocks'],
-                      ['Ação', 'Tempo', 'Código', 'Valor atual', 'Entrada', 'Saída', 'Div %', 'Qtd.', 'Invest.', 'Valorização'],
-                      [1*inch, 0.5*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.5*inch, 0.5*inch, 0.7*inch, 0.8*inch], is_stock=True)
+    elements.append(Paragraph("🏦 BELLA INVESTIMENTOS", styles['MainTitle']))
+    elements.append(Paragraph(f"Relatório de Carteira - {investor}", styles['SubTitle']))
+    total_highlight = f"""
+        <b>Valor Total da Carteira: {format_value(total_value)}</b><br/>
+        <i>Carteira estruturada em dólares americanos</i>
+    """
+    elements.append(Paragraph(total_highlight, styles['HighlightBox']))
     
-    add_asset_section(elements, 'Ações de Oportunidade', data['opp_stocks_total'], data['opp_stocks'],
-                      ['Ação', 'Tempo', 'Código', 'Valor atual', 'Entrada', 'Saída', 'Div %', 'Qtd.', 'Invest.', 'Valorização'],
-                      [1*inch, 0.5*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.5*inch, 0.5*inch, 0.7*inch, 0.8*inch], is_stock=True)
-
-    add_asset_section(elements, 'ETFs', data['etfs_total'], data['etfs'],
-                      ['ETF', 'Tempo', 'Código', 'Valor atual', 'Entrada', 'Div %', 'Qtd.', 'Investimento', 'Cresc. Anual'],
-                      [1*inch, 0.5*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.6*inch, 0.5*inch, 0.7*inch, 0.9*inch], is_stock=False)
-
-    add_asset_section(elements, 'ETFs de Oportunidade', data['etfs_op_total'], data['etfs_op'],
-                      ['ETF', 'Tempo', 'Código', 'Valor atual', 'Entrada', 'Div %', 'Qtd.', 'Investimento', 'Cresc. Anual'],
-                      [1*inch, 0.5*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.6*inch, 0.5*inch, 0.7*inch, 0.9*inch], is_stock=False)
+    intro_text = f"""
+        Este relatório apresenta uma análise detalhada da sua carteira de investimentos, 
+        cuidadosamente estruturada de acordo com seu perfil de risco e objetivos financeiros. 
+        Nossa estratégia prioriza a <b>diversificação inteligente</b> e o <b>crescimento sustentável</b> 
+        do seu patrimônio.
+    """
+    elements.append(Paragraph(intro_text, styles['IntroText']))
     
-    add_asset_section(elements, 'ETFs Anti-Frágil', data['etfs_af_total'], data['etfs_af'],
-                      ['ETF', 'Tempo', 'Código', 'Valor atual', 'Entrada (Anti-Frágil)', 'Div %', 'Qtd.', 'Investimento', 'Cresc. Anual'],
-                      [1*inch, 0.5*inch, 0.7*inch, 0.7*inch, 1.2*inch, 0.6*inch, 0.5*inch, 0.7*inch, 0.9*inch], is_stock=False)
+    instructions_text = """
+        📝 <b>Como utilizar este relatório:</b><br/>
+        • Os códigos dos ativos estão destacados em <font color='red'><b>vermelho</b></font> para facilitar a busca na sua corretora<br/>
+        • As entradas recomendadas são baseadas em médias móveis (EMA 10 e EMA 20) para ações e ETFs<br/>
+        • As metas de saída representam potencial de valorização baseado em análise fundamentalista
+    """
+    elements.append(Paragraph(instructions_text, styles['IntroText']))
+    brasilia_tz = pytz.timezone('America/Sao_Paulo')
+    now_brasilia = datetime.now(brasilia_tz)
+    data_hora = now_brasilia.strftime('%d/%m/%Y às %H:%M')
+    elements.append(Paragraph(f"Data do relatório: {data_hora}", styles['DateStyle']))
+    elements.append(Spacer(1, 0.3 * inch))
+    elements.append(PageBreak())
+    
+    if bonds:
+        add_asset_section(elements, '💰 Títulos de Renda Fixa (Bonds)', calculate_total(bonds), bonds, 'bonds')
+        elements.append(PageBreak())
 
-    if data['cryptos']:
-        elements.append(Paragraph("Criptomoedas", styles['MyHeading2']))
-        cryptos_data = [
-            ['Nome', 'Código', 'Valor atual', 'Qtd.', 'Investimento', 'Valorização (%)']
-        ]
-        for c in data['cryptos']:
-            if not isinstance(c, dict): continue
-            
-            quantity_text = f"{c.get('quantity', 0):.8f}".rstrip('0').rstrip('.') if c.get('quantity') is not None else '–'
-            growth_text = f"{c.get('average_growth', 0):.2f}" if c.get('average_growth') is not None else '–'
-            
-            cryptos_data.append([
-                c.get('company_name', '–'),
-                c.get('symbol', '–'),
-                format_value(c.get('unit_price')),
-                quantity_text,
-                format_value(c.get('investment')),
-                growth_text
-            ])
-        
-        cryptos_data.append(['Total Criptomoedas', '', '', '', '', f"USD {format_value(data['cryptos_total'], False)}"])
-        cryptos_table = Table(cryptos_data, colWidths=['*', 1*inch, 1*inch, 0.7*inch, 1*inch, 1.2*inch])
-        cryptos_table.setStyle(table_style)
-        cryptos_table.setStyle(total_row_style)
-        cryptos_table.setStyle(TableStyle([('SPAN', (0, -1), (4, -1))]))
-        elements.append(cryptos_table)
-        elements.append(Spacer(1, 0.2 * inch))
+    if stocks:
+        add_asset_section(elements, '📈 Ações', calculate_total(stocks), stocks, 'stocks')
+        elements.append(PageBreak())
+    
+    if opp_stocks:
+        add_asset_section(elements, '🎯 Ações de Oportunidade', calculate_total(opp_stocks), opp_stocks, 'opp_stocks')
+        elements.append(PageBreak())
 
-    if data['real_estates']:
-        elements.append(Paragraph(f"Imóveis: USD {format_value(data['real_estates_total'], False)}", styles['MyHeading2']))
-        real_estates_data = [
-            ['Imóvel - nome', 'Valor investido', 'Valorização (%)', 'Valor esperado']
-        ]
-        for r in data['real_estates']:
-            if not isinstance(r, dict): continue
-            real_estates_data.append([
-                r.get('symbol', '–'),
-                format_value(r.get('investment')),
-                format_value(r.get('appreciation_pct', 0), is_percentage=True),
-                format_value(r.get('current_value'))
-            ])
+    if etfs:
+        add_asset_section(elements, '📊 ETFs', calculate_total(etfs), etfs, 'etfs')
+        elements.append(PageBreak())
+
+    if etfs_op:
+        add_asset_section(elements, '🚀 ETFs de Oportunidade', calculate_total(etfs_op), etfs_op, 'etfs_op')
+        elements.append(PageBreak())
+    
+    if etfs_af:
+        add_asset_section(elements, '🛡️ ETFs Anti-Frágil', calculate_total(etfs_af), etfs_af, 'etfs_af')
+        elements.append(PageBreak())
+
+    if cryptos:
+        add_asset_section(elements, '₿ Criptomoedas', calculate_total(cryptos), cryptos, 'cryptos')
         
-        real_estates_data.append(['Total Imóveis', '', '', f"USD {format_value(data['real_estates_total'], False)}"])
-        real_estates_table = Table(real_estates_data, colWidths=['*', 1.5*inch, 1.5*inch, 1.5*inch])
-        real_estates_table.setStyle(table_style)
-        real_estates_table.setStyle(total_row_style)
-        real_estates_table.setStyle(TableStyle([('SPAN', (0, -1), (2, -1))]))
-        elements.append(real_estates_table)
-        elements.append(Spacer(1, 0.2 * inch))
+
+    if real_estates:
+        add_asset_section(elements, '🏠 Imóveis', calculate_total(real_estates), real_estates, 'real_estates')
 
     doc = SimpleDocTemplate(buffer, pagesize=letter,
-                            rightMargin=inch, leftMargin=inch,
-                            topMargin=inch, bottomMargin=inch)
+                            rightMargin=0.7*inch, leftMargin=0.7*inch,
+                            topMargin=0.7*inch, bottomMargin=0.7*inch)
     doc.build(elements)
     buffer.seek(0)
     return buffer
