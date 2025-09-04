@@ -1,0 +1,170 @@
+{
+  "bonds": [
+    {
+      "name": "COP Corp 7.0 Mar30'29",
+      "code": "US718507BK18",
+      "maturity": "30/03/2029",
+      "unitPrice": 1191.09,
+      "coupon": 7.0,
+      "description": [
+        "Bond COP Corp 7.0% – ConocoPhillips (Energia)",
+        "Setor: Energia (Oil & Gas – Exploração e Produção)",
+        "Cupom: 7,00 ao ano",
+        "Pagamentos: Semestrais – Março e Setembro",
+        "Vencimento: 30 de março de 2029",
+        "Preço atual: US$ 1.191,09",
+        "Valor de face: US$ 1.000,00",
+        "Classificação de crédito:",
+        "Moody's: A2",
+        "S&P: A-",
+        "Moeda: Dólar (USD)",
+        "Negociado em bolsa: Sim"
+      ], 
+			"summary": "ConocoPhillips é uma gigante energética americana especializada em exploração e produção (upstream) de petróleo, gás natural e derivados, com operações globais e sede em Houston, Texas. Fundada em 1875 e resultante da união entre Conoco e Phillips em 2002, mantém foco exclusivo em upstream após a cisão da refinaria (Phillips 66) em 2012. Em 2024, registrou US$ 56,95 bilhões de receita, com lucro líquido de US$ 9,25 bilhões e produção média de 1,987 milhões de barris de petróleo equivalente por dia . Recentemente, adquiriu a Marathon Oil por US$ 22,5 bilhões para ampliar sua presença em campos de xisto nos EUA e segue com planos de reestruturação para reduzir custos ."
+    },
+		{
+      "name": "CVX Corp 8.0 Apr01'27",
+      "code": "US166756AQ96",
+      "maturity": "01/04/2027",
+      "unitPrice": 1064.88,
+      "coupon": 8.0,
+      "description": [
+        "Bond CVX Corp 8.0% – Chevron (Energia)",
+        "Emissor: Chevron Corporation (CVX)",
+        "Setor: Energia (Oil & Gas – Integrada)",
+        "Cupom: 8,00 ao ano",
+        "Pagamentos: Semestrais – Abril e Outubro",
+        "Vencimento: 1 de abril de 2027",
+        "Valor de face: US$ 1.000,00",
+        "Classificação de crédito:",
+        "Moody's: AA2",
+        "S&P: AA-",
+        "Moeda: Dólar (USD)",
+        "ISIN: US166756AQ96",
+        "Negociado em bolsa: Sim"
+      ],
+			"summary": "Chevron Corporation é uma das maiores empresas globais de energia, integrada verticalmente e atuando em exploração, produção, refino, transportecomercialização de petróleo e gás. Fundada em 1879 como Standard Oil da Califórnia, hoje está sediada em Houston, Texas, e opera em mais de 180 países. A empresa mantém grau de investimento robusto, lançou bonds como o 8,0 % com vencimento em 1 de abril de 2027 (senior unsecured, cupom alto, não resgatável antecipadamente, com liquidez limitada). É reconhecida por gerar forte fluxo de caixa, especialmente após a aquisição da Hess (2023–2025), enquanto avança em projetos de energia de baixo carbono, como captura de carbono e hidrogênio "
+    }
+  ],
+	"etfs_cons": [
+    {
+      "symbol": "SGOV",
+      "company_name": "iShares 0-3 Month Treasury Bond ETF",
+      "unitPrice": 100.73,
+      "dividendYield": 4.43,
+      "averageGrowth": 2.89,
+      "ema10": 100.58,
+      "ema20": 100.56,
+      "vr": 1.92,
+      "vs": 0.09,
+      "chart": "templates/static/chart_META.png"
+    }
+	],
+	"etfs_mod":[
+		{
+      "symbol": "NVDA",
+      "company_name": "iShares 0-3 Month Treasury Bond ETF",
+      "unitPrice": 100.73,
+      "dividendYield": 4.43,
+      "averageGrowth": 2.89,
+      "ema10": 100.58,
+      "ema20": 100.56,
+      "vr": 1.92,
+      "vs": 0.09,
+      "chart": "templates/static/chart_NVDA.png"
+    }
+  ],
+	"etfs_agr":[
+		{
+      "symbol": "QQQ",
+      "company_name": "iShares 0-3 Month Treasury Bond ETF",
+      "unitPrice": 100.73,
+      "dividendYield": 4.43,
+      "averageGrowth": 2.89,
+      "ema10": 100.58,
+      "ema20": 100.56,
+      "vr": 1.92,
+      "vs": 0.09,
+      "chart": "templates/static/chart_QQQ.png"
+    }
+	],
+  "stocks_mod": [
+    {
+      "symbol": "SGOV",
+      "company_name": "iShares 0-3 Month Treasury Bond ETF",
+      "unitPrice": 100.73,
+      "dividendYield": 4.43,
+      "averageGrowth": 2.89,
+      "ema10": 100.58,
+      "ema20": 100.56,
+      "vr": 1.92,
+      "vs": 0.09,
+      "chart": "templates/static/chart_META.png"
+    }
+	],
+	"stocks_arj":[
+		{
+      "symbol": "NVDA",
+      "company_name": "iShares 0-3 Month Treasury Bond ETF",
+      "unitPrice": 100.73,
+      "dividendYield": 4.43,
+      "averageGrowth": 2.89,
+      "ema10": 100.58,
+      "ema20": 100.56,
+      "vr": 1.92,
+      "vs": 0.09,
+      "chart": "templates/static/chart_NVDA.png"
+    }
+  ],
+	"stocks_opp":[
+		{
+      "symbol": "QQQ",
+      "company_name": "iShares 0-3 Month Treasury Bond ETF",
+      "unitPrice": 100.73,
+      "dividendYield": 4.43,
+      "averageGrowth": 2.89,
+      "ema10": 100.58,
+      "ema20": 100.56,
+      "vr": 1.92,
+      "vs": 0.09,
+      "chart": "templates/static/chart_QQQ.png"
+    }
+	]
+}
+
+{
+  "bonds": [],
+  "etfs_cons": [],
+  "etfs_mod": [],
+  "etfs_agr": [],
+
+  "stocks_mod": [],
+  "stocks_arj": [],
+  "stocks_opp": [],
+
+  "reits_cons": [],
+  "smallcaps_arj": [],
+
+  "crypto": [
+    {
+      "symbol": "BTC",
+      "company_name": "BITCOIN",
+      "unit_price": 108.14,
+      "vs": -4.02,
+      "entry_price": 112.38,
+      "target_price": 124.46,
+      "chart": "src/api/static/images/charts/BTC_chart.png",
+      "logo_path": "src/api/static/images/logos/bitcoin.png"
+    },
+    {
+      "symbol": "ETH",
+      "company_name": "ETHEREUM",
+      "unit_price": 2850.12,
+      "vs": 2.15,
+      "entry_price": 2789.50,
+      "target_price": 3200.00,
+      "chart": "src/api/static/images/charts/ETH_chart.png",
+      "logo_path": "src/api/static/images/logos/ethereum.png"
+    }
+  ]
+}
