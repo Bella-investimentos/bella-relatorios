@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 import requests
 import yfinance as yf
 from dotenv import load_dotenv
-from jinja2 import Environment, FileSystemLoader
 import pandas as pd
 import tempfile
 from src.services.carteiras.pdf_generator import generate_pdf_buffer
@@ -766,57 +765,6 @@ def link_callback(uri, rel, base_url):
         else:
             raise Exception(f"Arquivo não encontrado: {path}")
     return uri
-
-def render_report(
-    investor: str,
-    bonds: List[Dict[str, Any]],
-    stocks: List[Dict[str, Any]],
-    etfs: List[Dict[str, Any]],
-    etfs_op: Optional[List[Dict[str, Any]]] = None,
-    etfs_af: Optional[List[Dict[str, Any]]] = None,
-    opp_stocks: Optional[List[Dict[str, Any]]] = None,
-    cryptos: Optional[List[Dict[str, Any]]] = None,
-    real_estates: Optional[List[Dict[str, Any]]] = None
-) -> str:  
-    date = datetime.now().strftime('%d/%m/%Y')
-    opp_stocks = opp_stocks or []
-    etfs_op = etfs_op or []
-    etfs_af = etfs_af or []
-    cryptos = cryptos or []
-    real_estates = real_estates or []
-
-    bonds_total = sum(b.get('investment', 0) for b in bonds)
-    stocks_total = sum(a.get('investment', 0) for a in stocks)
-    opp_stocks_total = sum(a.get('investment', 0) for a in opp_stocks)
-    etfs_total = sum(e.get('investment', 0) for e in etfs)
-    etfs_op_total = sum(e.get('investment', 0) for e in etfs_op)
-    etfs_af_total = sum(e.get('investment', 0) for e in etfs_af)
-    cryptos_total = sum(c.get('investment', 0) for c in cryptos)
-    real_estates_total = sum(r.get('current_value') or 0 for r in real_estates)
-
-    total_value = (
-        bonds_total + stocks_total + opp_stocks_total +
-        etfs_total + etfs_op_total + etfs_af_total +
-        cryptos_total + real_estates_total
-    )
-
-    env = Environment(loader=FileSystemLoader('templates'), autoescape=True)
-    tpl = env.get_template('relatorio_acoes_etfs.html.j2')
-    html = tpl.render(
-        investor=investor,
-        date=date,
-        bonds=bonds, bonds_total=bonds_total,
-        stocks=stocks, stocks_total=stocks_total,
-        opp_stocks=opp_stocks, opp_stocks_total=opp_stocks_total,
-        etfs=etfs, etfs_total=etfs_total,
-        etfs_op=etfs_op, etfs_op_total=etfs_op_total,
-        etfs_af=etfs_af, etfs_af_total=etfs_af_total,
-        cryptos=cryptos, cryptos_total=cryptos_total,
-        real_estates=real_estates, real_estates_total=real_estates_total,
-        total_value=total_value
-    )
-    print("✅ HTML gerado em memória")
-    return html  # retorna HTML em memória
 
 # =========================
 # Builder a partir do payload do front
