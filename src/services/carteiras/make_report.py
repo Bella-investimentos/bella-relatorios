@@ -109,26 +109,131 @@ def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[f
     if 'ema_200' in df.columns and ema_200_value is not None:
         plt.plot(df.index, df['ema_200'], label=f'EMA200: ${ema_200_value:.2f}', linestyle=':', linewidth=2, color='#F18F01')
 
-    plt.title(f'Análise Técnica - {symbol}', fontsize=14, fontweight='bold')
+        plt.title(f'Análise Técnica - {symbol}', fontsize=14, fontweight='bold')
     ax = plt.gca()
     ax.set_xlabel('Período', fontsize=12)
     ax.set_ylabel('Preço (USD)', fontsize=12)
     plt.legend(loc='upper left', frameon=True, fancybox=True, shadow=True, fontsize=10, bbox_to_anchor=(0.02, 0.98))
     ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-    ax.tick_params(axis='y', which='both', labelleft=True, labelright=True, left=True, right=True)
-    ax.yaxis.set_ticks_position('both')
 
+    # >>> SUBSTITUA tudo daqui até o tight_layout() <<<
+    from matplotlib.ticker import FuncFormatter, MaxNLocator
+    import numpy as np
+    # 1) Limites Y baseados no dado (close/EMAs + target)
+    series = [df['close'], df['ema_10'], df['ema_20']]
+    if 'ema_200' in df.columns:
+        series.append(df['ema_200'])
+    vals = pd.concat(series)
+    y_min, y_max = float(vals.min()), float(vals.max())
+    if target_price is not None:
+        y_min = min(y_min, float(target_price))
+        y_max = max(y_max, float(target_price))
+    margin = max((y_max - y_min) * 0.08, 1e-6)  # ~8% de folga
+    ax.set_ylim(y_min - margin, y_max + margin)
+
+    # 2) Grade e ticks padronizados
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=6))                 # mesma qtde de ticks
+    fmt = FuncFormatter(lambda v, _: f'${v:,.2f}')                   # sempre 2 casas e milhar
+    ax.yaxis.set_major_formatter(fmt)
+    ax.tick_params(axis='y', pad=4, labelleft=True, left=True)       # só configura o da esquerda
+
+    # 3) Duplicar no lado direito **com os MESMOS** limites/ticks/formatter
     ax_r = ax.twinx()
     ax_r.set_ylim(ax.get_ylim())
-    ax_r.set_yticks(ax.get_yticks())
-    ax_r.set_ylabel('Preço (USD)', fontsize=12)
-    ax_r.grid(False)
+    ax_r.yaxis.set_major_locator(ax.yaxis.get_major_locator())
+    ax_r.yaxis.set_major_formatter(fmt)
+    ax_r.tick_params(axis='y', pad=4, labelright=True, right=True)
+
+    # (opcional) alinhar visualmente as labels à borda interna
+    for lbl in ax.get_yticklabels():
+        lbl.set_horizontalalignment('right')
+    for lbl in ax_r.get_yticklabels():
+        lbl.set_horizontalalignment('left')
 
     plt.tight_layout()
+
     plt.savefig(chart_path)
     plt.close()
 
     return os.path.abspath(chart_path)
+
+def _crypto_daily_from_fmp(symbol: str, years: int = 5) -> pd.DataFrame:
+    """
+    Busca histórico DIÁRIO de cripto na FMP (ex.: BTCUSD/ETHUSD).
+    Tenta historical-price-full; se vazio, cai para historical-chart/1day.
+    Retorna DF com colunas: date, open, high, low, close, volume.
+    """
+    api_key = os.getenv("FMP_API_KEY")
+    if not api_key:
+        return pd.DataFrame()
+
+    pair = symbol.upper().strip()
+    if not pair.endswith("USD"):
+        pair = f"{pair}USD"
+
+    sess = requests.Session()
+    sess.headers.update({"User-Agent": "make_report-crypto/1.0"})
+
+    def _full():
+        url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{pair}"
+        try:
+            r = sess.get(url, params={"apikey": api_key}, timeout=20)
+            r.raise_for_status()
+            data = r.json()
+            return data.get("historical") if isinstance(data, dict) else None
+        except Exception:
+            return None
+
+    def _chart_1d():
+        url = f"https://financialmodelingprep.com/api/v3/historical-chart/1day/{pair}"
+        try:
+            r = sess.get(url, params={"apikey": api_key}, timeout=20)
+            r.raise_for_status()
+            return r.json()  # lista de dicts
+        except Exception:
+            return None
+
+    hist = _full() or _chart_1d()
+    if not hist:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(hist).rename(columns={"datetime": "date"})
+    if "date" not in df or "close" not in df:
+        return pd.DataFrame()
+
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
+
+    if years:
+        cutoff = pd.Timestamp.today().normalize() - pd.DateOffset(years=years)
+        df = df[df["date"] >= cutoff]
+
+    # garante colunas esperadas
+    for col in ("open", "high", "low", "volume"):
+        if col not in df:
+            df[col] = pd.NA
+
+    return df[["date", "open", "high", "low", "close", "volume"]]
+
+
+def _to_weekly(df_daily: pd.DataFrame) -> pd.DataFrame:
+    """Agrega diário → semanal, fechando na sexta (W-FRI)."""
+    if df_daily is None or df_daily.empty:
+        return pd.DataFrame()
+    weekly = (
+        df_daily.resample("W-FRI", on="date")
+        .agg(
+            open=("open", "first"),
+            high=("high", "max"),
+            low=("low", "min"),
+            close=("close", "last"),
+            volume=("volume", "sum"),
+        )
+        .dropna()
+        .reset_index()
+    )
+    return weekly
 
 
 # =========================
@@ -263,6 +368,9 @@ def fetch_equity(
             raise ValueError(f"Não foi possível obter preço para {sym}")
 
         # barras semanais via FMP
+        vs_pct = None
+        vp_pct = None
+
         weekly_bars: list = []
         historical_response = requests.get(
             f"https://financialmodelingprep.com/api/v3/historical-price-full/{sym}?timeseries=260&apikey={FMP_API_KEY}",
@@ -276,6 +384,18 @@ def fetch_equity(
                     df_daily = pd.DataFrame(daily_data)
                     df_daily["date"] = pd.to_datetime(df_daily["date"])
                     df_daily = df_daily.set_index("date").sort_index()
+                    try:
+                        today = pd.Timestamp.today().normalize()
+                        last_friday = today - pd.offsets.Week(weekday=4)  # 4 = sexta
+                        s_close = df_daily["close"].dropna()
+                        ref = s_close.loc[s_close.index <= last_friday]
+                        if not ref.empty and price is not None:
+                            friday_close = float(ref.iloc[-1])
+                            if friday_close > 0:
+                                vs_pct = (float(price) / friday_close - 1.0) * 100.0
+                    except Exception:
+                        vs_pct = None
+
                     for _, week_data in df_daily.groupby(pd.Grouper(freq="W")):
                         if not week_data.empty:
                             bar = type("Bar", (), {
@@ -287,6 +407,11 @@ def fetch_equity(
                                 "date": week_data.index[-1].strftime("%Y-%m-%d")
                             })()
                             weekly_bars.append(bar)
+                            
+        # VP = potencial até o preço-alvo (se houver)
+        vp_pct = None
+        if price is not None and target_price is not None and float(price) > 0:
+            vp_pct = (float(target_price) / float(price) - 1.0) * 100.0  # em %
 
         # dividend yield
         div_yield = dividend_yield_calc(sym, price)
@@ -325,6 +450,11 @@ def fetch_equity(
         antifragile_entry_price = None
         if is_etf and antifragile and price is not None:
             antifragile_entry_price = float(price) * 1.03
+            
+        if vs_pct is not None:
+            vs_pct = round(vs_pct, 2)
+        if vp_pct is not None:
+            vp_pct = round(vp_pct, 2)
 
         return {
             "symbol": sym,
@@ -351,27 +481,144 @@ def fetch_equity(
             "averageGrowth": round(cagr_10y * 100, 1) if cagr_10y is not None else None,
             "antifragile_entry_price": round(antifragile_entry_price, 4) if antifragile_entry_price else None,
             "antifragileEntryPrice": round(antifragile_entry_price, 4) if antifragile_entry_price else None,
+            "vs": vs_pct,      # valorização semanal em %
+            "vp": vp_pct,      # potencial de valorização em %
+            # "vr": vr_val  # quando definirmos a fórmula
         }
 
     except Exception as e:
         print(f"[ERRO] fetch_equity falhou para {symbol}: {e}")
         raise
+def _crypto_daily_from_fmp(symbol: str, years: int = 5) -> pd.DataFrame:
+    api_key = os.getenv("FMP_API_KEY")
+    if not api_key:
+        return pd.DataFrame()
+
+    sym = symbol.upper().strip().replace("-", "")
+    if not sym.endswith("USD"):
+        sym = f"{sym}USD"
+
+    s = requests.Session()
+    s.headers.update({"User-Agent": "make_report-crypto/1.0"})
+
+    def _full():
+        url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{sym}"
+        try:
+            r = s.get(url, params={"apikey": api_key}, timeout=20)
+            r.raise_for_status()
+            data = r.json()
+            return data.get("historical") if isinstance(data, dict) else None
+        except Exception:
+            return None
+
+    def _chart_1d():
+        url = f"https://financialmodelingprep.com/api/v3/historical-chart/1day/{sym}"
+        try:
+            r = s.get(url, params={"apikey": api_key}, timeout=20)
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            return None
+
+    hist = _full() or _chart_1d()
+    if not hist:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(hist).rename(columns={"datetime": "date"})
+    if "date" not in df or "close" not in df:
+        return pd.DataFrame()
+
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
+
+    if years:
+        cutoff = pd.Timestamp.today().normalize() - pd.DateOffset(years=years)
+        df = df[df["date"] >= cutoff]
+
+    for col in ("open", "high", "low", "volume"):
+        if col not in df:
+            df[col] = pd.NA
+
+    return df[["date", "open", "high", "low", "close", "volume"]]
+
+
+def _to_weekly(df_daily: pd.DataFrame) -> pd.DataFrame:
+    if df_daily is None or df_daily.empty:
+        return pd.DataFrame()
+    return (
+        df_daily.resample("W-FRI", on="date")
+        .agg(
+            open=("open", "first"),
+            high=("high", "max"),
+            low =("low", "min"),
+            close=("close", "last"),
+            volume=("volume", "sum"),
+        )
+        .dropna()
+        .reset_index()
+    )
+
+
+def _weekly_df_to_bars(weekly_df: pd.DataFrame):
+    """Converte o DataFrame semanal em lista de 'bars' (obj. com attrs), como generate_chart espera."""
+    bars = []
+    if weekly_df is None or weekly_df.empty:
+        return bars
+    for _, r in weekly_df.iterrows():
+        Bar = type("Bar", (), {})  # objeto leve
+        b = Bar()
+        b.date   = r["date"].strftime("%Y-%m-%d") if hasattr(r["date"], "strftime") else str(r["date"])
+        b.open   = float(r["open"])
+        b.high   = float(r["high"])
+        b.low    = float(r["low"])
+        b.close  = float(r["close"])
+        b.volume = float(r.get("volume", 0) or 0)
+        bars.append(b)
+    return bars
+
 
 def fetch_crypto(
     symbol: str,
     quantity: float = 0.0,
     company_name: Optional[str] = None,
-    expected_growth: Optional[float] = None
-):
+    entry_price: Optional[float] = None,
+    target_price: Optional[float] = None,
+    expected_growth: Optional[float] = None,
+    want_chart: bool = True,
+) -> dict:
     """
-    Busca preço de cripto com fallbacks:
-    1) yfinance (vários períodos/intervalos + fast_info/info)
-    2) FMP (se FMP_API_KEY existir)
-    3) CoinGecko (sem API key)
+    Preço: FMP -> yfinance -> CoinGecko
+    Gráfico: FMP (histórico diário -> semanal W-FRI) + target
+    Retorna também entry_price/target_price e VS (% vs entrada).
     """
-    def _yf_price(sym: str) -> Optional[float]:
-        t = yf.Ticker(sym)
-        for period, interval in [("2d", "1d"), ("5d", "1d"), ("1mo", "1d"), ("7d", "1h")]:
+
+    sym_raw = symbol.strip()
+    sym_fmp = sym_raw.upper().replace("-", "")
+    if not sym_fmp.endswith("USD"):
+        sym_fmp = f"{sym_fmp}USD"             # FMP: BTCUSD
+    sym_yf = sym_raw.upper() if "-" in sym_raw else f"{sym_raw.upper()}-USD"  # yfinance: BTC-USD
+
+    # -------- preço atual --------
+    def _fmp_price() -> Optional[float]:
+        api = os.getenv("FMP_API_KEY")
+        if not api:
+            return None
+        try:
+            r = requests.get(
+                f"https://financialmodelingprep.com/api/v3/quote/{sym_fmp}",
+                params={"apikey": api}, timeout=10
+            )
+            if r.ok:
+                data = r.json()
+                if isinstance(data, list) and data and data[0].get("price") is not None:
+                    return float(data[0]["price"])
+        except Exception:
+            pass
+        return None
+
+    def _yf_price() -> Optional[float]:
+        t = yf.Ticker(sym_yf)
+        for period, interval in [("2d","1d"),("5d","1d"),("1mo","1d"),("7d","1h")]:
             try:
                 h = t.history(period=period, interval=interval, auto_adjust=True)
                 if h is not None and not h.empty and "Close" in h:
@@ -396,38 +643,15 @@ def fetch_crypto(
             pass
         return None
 
-    def _fmp_price(sym: str) -> Optional[float]:
-        api = os.getenv("FMP_API_KEY")
-        if not api:
-            return None
-        fmp_sym = sym.replace("-", "")
-        try:
-            url = f"https://financialmodelingprep.com/api/v3/quote/{fmp_sym}?apikey={api}"
-            r = requests.get(url, timeout=10)
-            if r.ok:
-                data = r.json()
-                if isinstance(data, list) and data and data[0].get("price") is not None:
-                    return float(data[0]["price"])
-        except Exception:
-            pass
-        return None
-
-    def _coingecko_price(sym: str) -> Optional[float]:
-    
+    def _coingecko_price() -> Optional[float]:
         mapping = {
-            "BTC-USD": "bitcoin",
-            "ETH-USD": "ethereum",
-            "SOL-USD": "solana",
-            "ADA-USD": "cardano",
-            "BNB-USD": "binancecoin"
+            "BTC-USD": "bitcoin", "ETH-USD": "ethereum",
+            "SOL-USD": "solana",  "ADA-USD": "cardano", "BNB-USD": "binancecoin"
         }
-        cg_id = mapping.get(sym.upper())
-        if not cg_id:
-            
-            cg_id = sym.split("-")[0].lower()
+        cg_id = mapping.get(sym_yf.upper()) or sym_yf.split("-")[0].lower()
         try:
-            url = f"https://api.coingecko.com/api/v3/simple/price"
-            r = requests.get(url, params={"ids": cg_id, "vs_currencies": "usd"}, timeout=10)
+            r = requests.get("https://api.coingecko.com/api/v3/simple/price",
+                             params={"ids": cg_id, "vs_currencies": "usd"}, timeout=10)
             if r.ok:
                 data = r.json()
                 if cg_id in data and "usd" in data[cg_id]:
@@ -436,24 +660,44 @@ def fetch_crypto(
             pass
         return None
 
-    try:
-        price = _fmp_price(symbol) or _yf_price(symbol) or _coingecko_price(symbol)
-        if price is None:
-            raise ValueError(f"Sem preço disponível para {symbol}")
+    price = _fmp_price() or _yf_price() or _coingecko_price()
+    if price is None:
+        raise RuntimeError(f"Sem preço disponível para {symbol}")
 
-        return {
-            "symbol": symbol.upper(),
-            "company_name": company_name if company_name else symbol.upper(),
-            "unit_price": price,
-            "unitPrice": price,
-            "quantity": quantity,
-            "investment": price * quantity,
-            "type": "CRYPTO",
-            "average_growth": expected_growth,
-            "averageGrowth": expected_growth,
-        }
-    except Exception as e:
-        raise RuntimeError(f"Falha ao obter dados da criptomoeda {symbol}: {e}")
+    # -------- VS vs entrada --------
+    vs_pct = None
+    if entry_price and entry_price > 0:
+        vs_pct = (price - float(entry_price)) / float(entry_price) * 100.0
+
+    # -------- gráfico semanal (via FMP) --------
+    chart_path = None
+    if want_chart:
+        try:
+            df_daily = _crypto_daily_from_fmp(sym_fmp)
+            weekly_df = _to_weekly(df_daily)
+            bars = _weekly_df_to_bars(weekly_df)
+            if bars:
+                # generate_chart está neste mesmo módulo
+                chart_path = generate_chart(symbol.upper(), weekly_bars=bars, target_price=target_price)
+        except Exception:
+            chart_path = None
+
+    # -------- retorno --------
+    return {
+        "symbol": symbol.upper(),
+        "company_name": company_name or symbol.upper(),
+        "unit_price": price,
+        "unitPrice": price,                  # se alguma parte ainda usa camelCase
+        "quantity": float(quantity or 0.0),
+        "investment": price * float(quantity or 0.0),
+        "type": "CRYPTO",
+        "entry_price": entry_price,
+        "target_price": target_price,
+        "vs": round(vs_pct, 2) if vs_pct is not None else None,
+        "average_growth": expected_growth,
+        "averageGrowth": expected_growth,
+        "chart": chart_path,
+    }
 
 def make_real_estate_position(name: str, invested_value: float, appreciation: float):
     """
@@ -662,4 +906,3 @@ def build_report_from_payload(payload: Dict[str, Any]) -> str:
     real_estates=real_estates
 )
     return pdf_buffer
-
