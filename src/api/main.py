@@ -26,7 +26,7 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "message": "API is running properly - Version 1.0.1"}
+    return {"status": "healthy", "message": "API is running properly - Version 1.0.2"}
 
 def _stream_pdf(buf: BytesIO, filename: str, disposition: str = "attachment"):
     """disposition: 'attachment' (download) ou 'inline' (abrir no navegador)."""
