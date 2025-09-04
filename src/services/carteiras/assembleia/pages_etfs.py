@@ -13,7 +13,7 @@ from .utils import fmt_currency_usd, wrap_and_draw, draw_centered_in_box
 ETF_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
     "logo":   {"x": 60,  "y": 700, "w": 60, "h": 60},
-    "title":  {"x": 140, "y": 720, "w": 420, "lh": 22, "font": ("Helvetica-Bold", 30), "max_lines": 2},
+    "title":  {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 30), "max_lines": 2},
     "subtitle": {"x": 140, "y": 665, "font": ("Helvetica-Bold", 16)},
 
     # gráfico + nota (mantém sua largura base)
