@@ -15,7 +15,7 @@ STK_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
 
     "logo":     {"x": 60,  "y": 700, "w": 60, "h": 60},
-    "title":    {"x": 140, "y": 720, "w": 420, "lh": 22, "font": ("Helvetica-Bold", 30), "max_lines": 2},
+    "title":    {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 30), "max_lines": 2},
     "subtitle": {"x": 140, "y": 665, "font": ("Helvetica-Bold", 16)},
 
     # gráfico
@@ -188,14 +188,14 @@ def draw_stock_page(
     meta_str  = fmt_currency_usd(s["target_price"]) if s.get("target_price") is not None else "–"
 
     # 1ª linha
-    label_value_card(spec["card_price"], "Valor:",  price_str)
-    label_value_card(spec["card_vp"],    "VP:",     vp_str)
+    label_value_card(spec["card_price"], "Valor",  price_str)
+    label_value_card(spec["card_vp"],    "VP",     vp_str)
     label_value_card(spec["card_score"], "Score",   score_str)
 
     # 2ª linha
-    label_value_card(spec["vr_box"],   "VR:",         vr_str)
-    label_value_card(spec["vs_box"],   "VS:",         vs_str)
-    label_value_card(spec["card_div"], "Dividendos:", div_str)
+    label_value_card(spec["vr_box"],   "VR",         vr_str)
+    label_value_card(spec["vs_box"],   "VS",         vs_str)
+    label_value_card(spec["card_div"], "Dividendos", div_str)
 
     # 3ª linha (grandes)
     green_card(**spec["card_ema10"], label_text="Entrada (EMA 10)", value=ema10_str)

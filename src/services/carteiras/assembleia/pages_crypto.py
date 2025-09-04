@@ -29,7 +29,7 @@ def normalize_crypto(d: dict) -> dict:
 CRP_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
     "logo":     {"x": 60,  "y": 700, "w": 60, "h": 60},
-    "title":    {"x": 140, "y": 720, "w": 420, "lh": 22, "font": ("Helvetica-Bold", 30), "max_lines": 1},
+    "title":    {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 30), "max_lines": 1},
     "subtitle": {"x": 140, "y": 680, "font": ("Helvetica-Bold", 15), "rgb": (0.15, 0.70, 0.55)},
 
     # mini-cards à esquerda (pretos) — manter nomes originais
@@ -90,7 +90,7 @@ def draw_crypto_page(c: Canvas, payload: dict):
 
     MINI_R    = 8                              # raio da borda dos mini-cards
     MINI_LBL  = ("Helvetica-Bold", 11)
-    MINI_VAL  = ("Helvetica-Bold", 16)
+    MINI_VAL  = ("Helvetica-Bold", 12)
 
     # ----- helpers de cards -----
     def small_black_card(box, label, value_text, pad_top=None):
@@ -144,8 +144,8 @@ def draw_crypto_page(c: Canvas, payload: dict):
         )
 
     # ----- desenha os cards (sem mexer em coord.) -----
-    small_black_card(spec["card_price"], "Valor:", fmt_currency_usd(d.get("unit_price")))
-    small_black_card(spec["card_vs"],    "VS:",    fmt_pct(d.get("vs")))
+    small_black_card(spec["card_price"], "Valor", fmt_currency_usd(d.get("unit_price")))
+    small_black_card(spec["card_vs"],    "VS",    fmt_pct(d.get("vs")))
     green_card(**spec["card_entry"], label="Entrada",     value=fmt_currency_usd(d.get("entry_price")))
     blue_card(**spec["card_meta"],  label="Meta (Saída)", value=fmt_currency_usd(d.get("target_price")))
 
