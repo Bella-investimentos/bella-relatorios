@@ -7,7 +7,7 @@ from .utils import translate_en_to_pt
 # IMPORTS que faltavam
 from .constants import (
     CRYPTO, ETFS_MOD, ETFS_ARR, ETFS_CONS, SMALL_CAPS, STK_ARJ, STK_MOD, STK_OPP, img_path, CAPA_IMG, NEWS_BG_IMG,
-    MODELO_PROTECAO, RISCO_CALCULADO, ACUMULO_CAPITAL, REITS # <- certifique-se de ter esses no constants.py
+    MODELO_PROTECAO, RISCO_CALCULADO, ACUMULO_CAPITAL, REITS, HEDGE # <- certifique-se de ter esses no constants.py
 )
 from .utils import wrap_and_draw  # <- usado para quebrar/desenhar texto
 
@@ -194,3 +194,6 @@ def onpage_reits(c: Canvas, doc):
     w, h = A4
     c.drawImage(img_path(REITS), 0, 0, width=w, height=h)
     
+def hedge(c: Canvas, doc):
+    w, h = A4
+    c.drawImage(img_path(HEDGE), 0, 0, width=w, height=h)

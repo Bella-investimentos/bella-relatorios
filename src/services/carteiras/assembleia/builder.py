@@ -10,18 +10,19 @@ from reportlab.lib.colors import white, black
 # suas funções/páginas
 from .pages_static import onpage_acao_arr, onpage_capa, onpage_etfs_arr, onpage_etfs_cons, onpage_etfs_mod, onpage_noticias, onpage_perfil_cons, onpage_perfil_mod, onpage_perfil_arj, onpage_perfil_opp, onpage_acao_mod, onpage_acao_arr,  onpage_reits, onpage_smallcap_arj, onpage_crypto
 from .pages_bonds import draw_bond_page
-from .pages_etfs import draw_etf_page
+from .pages_etfs import draw_etf_page, draw_hedge_page
 from .pages_stocks import draw_smallcap_page, draw_stock_page, draw_reit_page
 from .pages_crypto import draw_crypto_page
 from .pages_news import draw_news_page
 from .constants import img_path, BOND_PAGE_BG_IMG, ETF_PAGE_BG_IMG, NEWS_PAGE_BG_IMG
+from .pages_etfs import draw_etf_page 
 
 def generate_assembleia_report(
     bonds: list | None = None,
     etfs_cons: list | None = None,   # ETFs Conservadoras
     etfs_mod:  list | None = None,   # ETFs Moderadas
     etfs_agr:  list | None = None,   # ETFs Agressivas
-
+    hedge: list | None = None,      # Hedge (futuro)
     # AÇÕES por classificação
     stocks_mod: list | None = None,  # Ações Moderadas
     stocks_arj: list | None = None,  # Ações Arrojadas
@@ -42,6 +43,7 @@ def generate_assembleia_report(
     reits_cons     = reits_cons or []
     smallcaps_arj  = smallcaps_arj or []
     crypto = crypto or []
+    hedge = hedge or []
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -111,7 +113,9 @@ def generate_assembleia_report(
     etfs_cons_t = PageTemplate(id="Etfs_cons", frames=[frame], onPage=onpage_etfs_cons)
     etfs_arr_t = PageTemplate(id="Etfs_arr", frames=[frame], onPage=onpage_etfs_arr)
     reits_t = PageTemplate(id="Reits_conservadores", frames=[frame], onPage=onpage_reits)
-
+    hedge_t = PageTemplate
+    
+   
     # ETFs por categoria + suas páginas de notícia
     etf_cons_t      = PageTemplate(id="ETF_CONS",      frames=[frame], onPage=paged_onpage_factory(draw_etf_page, etfs_cons, ETF_PAGE_BG_IMG))
     etf_cons_news_t = PageTemplate(id="ETF_CONS_NEWS", frames=[frame], onPage=news_onpage_factory(etfs_cons))
@@ -147,6 +151,10 @@ def generate_assembleia_report(
                         onPage=paged_onpage_factory(draw_crypto_page, crypto, ETF_PAGE_BG_IMG))
     crp_news_t = PageTemplate(id="CRP_NEWS", frames=[frame],
                             onPage=news_onpage_factory(crypto))
+    
+    hedge_t = PageTemplate(id="HEDGE", frames=[frame], onPage=paged_onpage_factory(draw_hedge_page, hedge, ETF_PAGE_BG_IMG))
+    hedge_news_t = PageTemplate(id="HEDGE_NEWS", frames=[frame], onPage=news_onpage_factory(hedge))
+
     doc.addPageTemplates([
         cover_t, news_t, perfilcons_t, perfilmod_t, perfilarj_t, perfilopp_t,
         etf_cons_t, etf_cons_news_t,
@@ -161,6 +169,7 @@ def generate_assembleia_report(
         crypto_t, crp_t, crp_news_t,
         small_caps_t,
         etfs_mod_t, etfs_cons_t, etfs_arr_t,
+        hedge_t, hedge_news_t,
     ])
 
     # -------------------------
@@ -228,6 +237,11 @@ def generate_assembleia_report(
     add_asset_section(Story, "ETF_AGR",  "ETF_AGR_NEWS",  etfs_agr)
     Story.append(blank); Story.append(NextPageTemplate("Acoes_arrojadas")); Story.append(PageBreak())
     add_asset_section(Story, "STK_ARJ",  "STK_ARJ_NEWS",  stocks_arj)
+
+    # HEDGE
+    if hedge:
+        Story.append(blank); Story.append(NextPageTemplate("Etfs_mod")); Story.append(PageBreak())  # cabeçalho visual, opcional
+        add_asset_section(Story, "HEDGE", "HEDGE_NEWS", hedge)
 
     # Oportunidades (ações)
     if stocks_opp:
