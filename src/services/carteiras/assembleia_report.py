@@ -23,16 +23,17 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
     reits_cons     = enriched.get("reits_cons", []) or []
     smallcaps_arj  = enriched.get("smallcaps_arj", []) or []
     crypto         = enriched.get("crypto", []) or []
+    hedge          = enriched.get("hedge", []) or []
 
     logger.info("[ASSEMBLEIA] pós-prep: bonds=%d, etfs_cons=%d, etfs_mod=%d, etfs_agr=%d, "
                 "stocks_mod=%d, stocks_arj=%d, stocks_opp=%d, reits_cons=%d, smallcaps_arj=%d, crypto=%d",
                 len(bonds), len(etfs_cons), len(etfs_mod), len(etfs_agr),
                 len(stocks_mod), len(stocks_arj), len(stocks_opp),
-                len(reits_cons), len(smallcaps_arj), len(crypto))
+                len(reits_cons), len(smallcaps_arj), len(crypto)), len(hedge)
 
     return generate_assembleia_report(
         bonds=bonds,
         etfs_cons=etfs_cons, etfs_mod=etfs_mod, etfs_agr=etfs_agr,
         stocks_mod=stocks_mod, stocks_arj=stocks_arj, stocks_opp=stocks_opp,
-        reits_cons=reits_cons, smallcaps_arj=smallcaps_arj, crypto=crypto,
+        reits_cons=reits_cons, smallcaps_arj=smallcaps_arj, crypto=crypto, hedge=hedge,
     )

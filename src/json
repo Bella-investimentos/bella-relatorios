@@ -1,170 +1,178 @@
 {
+  
   "bonds": [
     {
+      "name": "DE Corp 8.1 May15'30",
+      "code": "US244199AZ87",
+      "company": "Deere & Company",
+      "sector": "Máquinas e Equipamentos Agrícolas",
+      "maturity": "15/05/2030",
+      "unit_price": 1197.21,
+      "coupon": 8.1,
+      "prev_unit_price": 1206.44,
+      "description": [
+        "Bond DE Corp 8.1% – Deere & Company",
+        "Setor: Máquinas e Equipamentos Agrícolas",
+        "Cupom: 8,10% ao ano (semestre)",
+        "Vencimento: 15 de maio de 2030",
+        "Preço atual: US$ 1.156,89",
+				"Valor de face: US$ 1.000,00",        
+        "Classificação de crédito:",
+				" S&P A-,",
+				" Moody's A2",
+				"Negociado em bolsa: Sim"
+      ],
+      "summary": "Deere & Company, comercialmente conhecida como John Deere, é líder global em equipamentos agrícolas, de construção e florestais, além de oferecer motores e serviços financeiros – fundada em 1837 e sediada em Moline, Illinois. A empresa reportou em 2024 receita superior a US$ 61 bilhões, com lucro líquido na casa de US$ 10 bilhões.É  considerada financeiramente sólida, com forte geração de caixa e investimento contínuo em inovação no setor industrial e agrícola. Recentemente, comprometeu-se a investir cerca de US$ 20 bilhões nospróximos 10 anos nas operações dos EUA, reforçando seu foco na manufatura local e em tecnologias avançadas"
+    },
+		{
+      "name": "CVX Corp 8.0 April01'27",
+      "code": "US166756AQ96",
+      "company": "Chevron Corporation",
+      "sector": "Energia",
+      "maturity": "01/04/2027",
+      "unit_price": 1176.97,
+      "coupon": 8.0,
+      "prev_unit_price": 1111.41,
+      "description": [
+        "Bond CVX Corp 8.0% – Chevron Corporation (Energia)",
+        "Setor: Energia (Oil & Gas – Integrada)",
+        "Cupom: 8,00% ao ano",
+        "Pagamentos: Semestrais -  Abril e Outubro",
+        "Vencimento: 01 de abril de 2027",
+        "Preço atual: US$ 1.064,88",
+        "Valor de face: US$ 1.000,00",
+        "Classificação de crédito:",
+				" S&P AA2,",
+				" Moody's AA2",
+				" Dólar (USD)",
+ 				"ISIN: US166756AQ96",
+ 				"Negociado em bolsa: Sim"
+      ],
+      "summary": "Chevron Corporation é uma das maiores empresas globais de energia, integrada verticalmente e atuando em exploração, produção, refino, transporte e comercialização de petróleo e gás. Fundada em 1879 como Standard Oil da Califórnia, hoje está sediada em Houston, Texas, e opera em mais de 180 países. A empresa mantém grau de investimento robusto, lançou bonds como o 8,0 % com vencimento em 1 de abril de 2027 (senior unsecured, cupom alto, não resgatável antecipadamente, com liquidez limitada). É reconhecida por gerar forte fluxo de caixa, especialmente após a aquisição da Hess (2023–2025), enquanto avança em projetos de energia de baixo carbono, como captura de carbono e hidrogênio"
+    },
+		{
+      "name": "DIS Corp 7.28 Jun30'28",
+      "code": "US254687DR41",
+      "company": "The Walt Disney Company",
+      "sector": "Mídia e Entretenimento",
+      "maturity": "30/06/2028",
+      "unit_price": 1107.63,
+      "coupon": 7.28,
+      "prev_unit_price": 1111.41,
+      "description": [
+        "Bond DIS Corp 7.28% – The Walt Disney Company",
+        "Setor: Mídia e Entretenimento",
+        "Cupom: 7,28% ao ano (semestre)",
+        "Vencimento: 30 de junho de 2028",
+        "Preço atual: US$ 1.082,76",
+        "Valor de face: US$ 1.000,00",
+        "Classificação de crédito:",
+				" S&P A,",
+				" Moody's A2",
+				"Moeda: Dólar (USD)",
+ 				"Rating: S&P; A | Fitch A (perspectiva estável)",
+ 				"Negociado em bolsa: Sim"
+      ],
+      "summary": "A Walt Disney Company, fundada em 1923, é um dos maiores conglomerados globais de entretenimento, atuando em estúdios de cinema, canais de TV, streaming (Disney+, Hulu, ESPN+), parques temáticos e produtos licenciados. Com receita anual em torno de USD 90 bilhões e ativos icônicos como Marvel, Pixar e Star Wars, a empresa combina marcas únicas com forte geração de caixa nos parques. Apesar da alta dívida herdada da compra da Fox, mantém grau de investimento (A-) e foco em rentabilizar o streaming. É considerada sólida e estratégica para investidores em ações e bonds."
+    },
+		{
       "name": "COP Corp 7.0 Mar30'29",
       "code": "US718507BK18",
+      "company": "ConocoPhillips",
+      "sector": "Energia",
       "maturity": "30/03/2029",
-      "unitPrice": 1191.09,
+      "unit_price": 1140.88,
       "coupon": 7.0,
+      "prev_unit_price": 1138.81,
       "description": [
         "Bond COP Corp 7.0% – ConocoPhillips (Energia)",
         "Setor: Energia (Oil & Gas – Exploração e Produção)",
-        "Cupom: 7,00 ao ano",
+        "Cupom: 7,00% ao ano",
         "Pagamentos: Semestrais – Março e Setembro",
         "Vencimento: 30 de março de 2029",
         "Preço atual: US$ 1.191,09",
         "Valor de face: US$ 1.000,00",
-        "Classificação de crédito:",
-        "Moody's: A2",
-        "S&P: A-",
+        "Classificação de crédito: S&P A-, Moody's A2",
         "Moeda: Dólar (USD)",
-        "Negociado em bolsa: Sim"
-      ], 
-			"summary": "ConocoPhillips é uma gigante energética americana especializada em exploração e produção (upstream) de petróleo, gás natural e derivados, com operações globais e sede em Houston, Texas. Fundada em 1875 e resultante da união entre Conoco e Phillips em 2002, mantém foco exclusivo em upstream após a cisão da refinaria (Phillips 66) em 2012. Em 2024, registrou US$ 56,95 bilhões de receita, com lucro líquido de US$ 9,25 bilhões e produção média de 1,987 milhões de barris de petróleo equivalente por dia . Recentemente, adquiriu a Marathon Oil por US$ 22,5 bilhões para ampliar sua presença em campos de xisto nos EUA e segue com planos de reestruturação para reduzir custos ."
-    },
-		{
-      "name": "CVX Corp 8.0 Apr01'27",
-      "code": "US166756AQ96",
-      "maturity": "01/04/2027",
-      "unitPrice": 1064.88,
-      "coupon": 8.0,
-      "description": [
-        "Bond CVX Corp 8.0% – Chevron (Energia)",
-        "Emissor: Chevron Corporation (CVX)",
-        "Setor: Energia (Oil & Gas – Integrada)",
-        "Cupom: 8,00 ao ano",
-        "Pagamentos: Semestrais – Abril e Outubro",
-        "Vencimento: 1 de abril de 2027",
-        "Valor de face: US$ 1.000,00",
-        "Classificação de crédito:",
-        "Moody's: AA2",
-        "S&P: AA-",
-        "Moeda: Dólar (USD)",
-        "ISIN: US166756AQ96",
         "Negociado em bolsa: Sim"
       ],
-			"summary": "Chevron Corporation é uma das maiores empresas globais de energia, integrada verticalmente e atuando em exploração, produção, refino, transportecomercialização de petróleo e gás. Fundada em 1879 como Standard Oil da Califórnia, hoje está sediada em Houston, Texas, e opera em mais de 180 países. A empresa mantém grau de investimento robusto, lançou bonds como o 8,0 % com vencimento em 1 de abril de 2027 (senior unsecured, cupom alto, não resgatável antecipadamente, com liquidez limitada). É reconhecida por gerar forte fluxo de caixa, especialmente após a aquisição da Hess (2023–2025), enquanto avança em projetos de energia de baixo carbono, como captura de carbono e hidrogênio "
-    }
-  ],
-	"etfs_cons": [
+      "summary": "ConocoPhillips é uma gigante energética americana especializada em exploração e produção (upstream) de petróleo, gás natural e derivados, com operações globais e sede em Houston, Texas. Fundada em 1875 e resultante da união entre Conoco e Phillips em 2002, mantém foco exclusivo em upstream após a cisão da refinaria (Phillips 66) em 2012. Em 2024, registrou US$ 56,95 bilhões de receita, com lucro líquido de US$ 9,25 bilhões e produção média de 1,987 milhões de barris de petróleo equivalente por dia . Recentemente, adquiriu a Marathon Oil por US$ 22,5 bilhões para ampliar sua presença em campos de xisto nos EUA e segue com planos de reestruturação para reduzir custos."
+    },
+    
     {
-      "symbol": "SGOV",
-      "company_name": "iShares 0-3 Month Treasury Bond ETF",
-      "unitPrice": 100.73,
-      "dividendYield": 4.43,
-      "averageGrowth": 2.89,
-      "ema10": 100.58,
-      "ema20": 100.56,
-      "vr": 1.92,
-      "vs": 0.09,
-      "chart": "templates/static/chart_META.png"
-    }
-	],
-	"etfs_mod":[
-		{
-      "symbol": "NVDA",
-      "company_name": "iShares 0-3 Month Treasury Bond ETF",
-      "unitPrice": 100.73,
-      "dividendYield": 4.43,
-      "averageGrowth": 2.89,
-      "ema10": 100.58,
-      "ema20": 100.56,
-      "vr": 1.92,
-      "vs": 0.09,
-      "chart": "templates/static/chart_NVDA.png"
-    }
-  ],
-	"etfs_agr":[
-		{
-      "symbol": "QQQ",
-      "company_name": "iShares 0-3 Month Treasury Bond ETF",
-      "unitPrice": 100.73,
-      "dividendYield": 4.43,
-      "averageGrowth": 2.89,
-      "ema10": 100.58,
-      "ema20": 100.56,
-      "vr": 1.92,
-      "vs": 0.09,
-      "chart": "templates/static/chart_QQQ.png"
-    }
-	],
-  "stocks_mod": [
+      "name": "CMCSA Corp 7.125 Feb15'28",
+      "code": "US872287AL19",
+      "company": "Comcast Corporation",
+      "sector": "Telecomunicações e Mídia",
+      "maturity": "15/02/2028",
+      "unit_price": 1082.61,
+      "coupon": 7.125,
+      "prev_unit_price": 1081.84,
+      "description": [
+        "Bond CMCSA Corp 7.125% – Comcast Corporation",
+        "Setor: Telecomunicações e Mídia",
+        "Cupom: 7,125% ao ano (semestre)",
+        "Vencimento: 15 de fevereiro de 2028",
+        "Preço atual: US$ 1.068,92",
+        "Valor de face: US$ 1.000,00",
+        "Classificação de crédito:",
+				" S&P BBB+,",
+				" Moody's Baa1",
+				" Dólar (USD)",
+				" Negociado em bolsa: Sim"
+      ],
+      "summary": " Comcast Corporation é um conglomerado global de mídia e tecnologia que oferece serviços de banda larga, TV, internet e telefonia via Xfinity e Sky, além de produzir conteúdo com NBCUniversal, Peacock e operar parques temáticos. No primeiro semestre de 2025, registrou receita de US$ 60,2 bilhões e lucro líquido de US$ 14,3 bilhões, com desempenho impulsionado por telecom, streaming e parques. A empresa mantém perfil estável com forte geração de caixa, enfrenta concorrência acirrada no segmento de banda larga e está em processo de spin-off da sua unidade de redes a cabo (Versant)."
+    },
+    
+    
     {
-      "symbol": "SGOV",
-      "company_name": "iShares 0-3 Month Treasury Bond ETF",
-      "unitPrice": 100.73,
-      "dividendYield": 4.43,
-      "averageGrowth": 2.89,
-      "ema10": 100.58,
-      "ema20": 100.56,
-      "vr": 1.92,
-      "vs": 0.09,
-      "chart": "templates/static/chart_META.png"
+      "name": "WM Corp 7.0 Jul15'28",
+      "code": "US902917AH67",
+      "company": "Waste Management Inc.",
+      "sector": "Gestão de Resíduos / Serviços Ambientais",
+      "maturity": "15/07/2028",
+      "unit_price": 1075.12,
+      "coupon": 7.0,
+      "prev_unit_price": 1070.85,
+      "description": [
+        "Bond WM Corp 7.0% – Waste Management Inc.",
+        "Setor: Gestão de Resíduos / Serviços Ambientais",
+        "Cupom: 7,00% ao ano",
+        "Vencimento: 15 de julho de 2028",
+        "Preço atual: US$ 1.075,12",
+        "Valor de face: US$ 1.000,00",
+        "Classificação de crédito:",
+				" S&P A-,",
+				" Moody's A2",
+				"Negociado em bolsa: Sim"
+      ],
+      "summary": "Waste Management, Inc. (WM) é a maior empresa de gestão de resíduos na América do Norte, fundada em 1968 e com sede em Houston, Texas. Em 2024, reportou receita anual de aproximadamente US$ 22,06 bi e lucro líquido de US$ 2,75 bi, com crescimento consistente e forte geração de caixa . A companhia opera uma extensa rede de estações de transferência, aterros sanitários, plantas de reciclagem e projetos de energia a partir de biogás, além de ter adquirido a Stericycle em 2024 por US$ 7,2 bi. Com perfil sólido e foco crescente em sustentabilidade, é uma emissora considerada estável e confiável para investidores em bonds."
     }
-	],
-	"stocks_arj":[
-		{
-      "symbol": "NVDA",
-      "company_name": "iShares 0-3 Month Treasury Bond ETF",
-      "unitPrice": 100.73,
-      "dividendYield": 4.43,
-      "averageGrowth": 2.89,
-      "ema10": 100.58,
-      "ema20": 100.56,
-      "vr": 1.92,
-      "vs": 0.09,
-      "chart": "templates/static/chart_NVDA.png"
-    }
-  ],
-	"stocks_opp":[
-		{
-      "symbol": "QQQ",
-      "company_name": "iShares 0-3 Month Treasury Bond ETF",
-      "unitPrice": 100.73,
-      "dividendYield": 4.43,
-      "averageGrowth": 2.89,
-      "ema10": 100.58,
-      "ema20": 100.56,
-      "vr": 1.92,
-      "vs": 0.09,
-      "chart": "templates/static/chart_QQQ.png"
-    }
-	]
+  ]
 }
-
 {
-  "bonds": [],
-  "etfs_cons": [],
+  "etfs_cons": [{"symbol": "SPY"}],
   "etfs_mod": [],
   "etfs_agr": [],
 
-  "stocks_mod": [],
+  "stocks_mod": [{"symbol": "META"}],
   "stocks_arj": [],
-  "stocks_opp": [],
+  "stocks_opp": [{"symbol": "CRM", "target_price": 256.25}],
 
-  "reits_cons": [],
+  "reits_cons": [{"symbol": "O"}],
   "smallcaps_arj": [],
+	"hedge": [
+  { "symbol": "GLD", "target_price": 220 },
+  { "symbol": "TLT", "target_price": 110 }
+]
 
+  
+  "hedge": [
+    { "symbol": "UUP"},
+    { "symbol": "UDN"},
+		{ "symbol": "VXX"}
+  ]
   "crypto": [
-    {
-      "symbol": "BTC",
-      "company_name": "BITCOIN",
-      "unit_price": 108.14,
-      "vs": -4.02,
-      "entry_price": 112.38,
-      "target_price": 124.46,
-      "chart": "src/api/static/images/charts/BTC_chart.png",
-      "logo_path": "src/api/static/images/logos/bitcoin.png"
-    },
-    {
-      "symbol": "ETH",
-      "company_name": "ETHEREUM",
-      "unit_price": 2850.12,
-      "vs": 2.15,
-      "entry_price": 2789.50,
-      "target_price": 3200.00,
-      "chart": "src/api/static/images/charts/ETH_chart.png",
-      "logo_path": "src/api/static/images/logos/ethereum.png"
-    }
+  { "symbol": "BTC-USD", "entry_price": 112.38, "target_price": 124.46 }
   ]
 }
