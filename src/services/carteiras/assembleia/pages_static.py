@@ -173,7 +173,7 @@ def onpage_acao_mod(c: Canvas, doc):
 def onpage_smallcap_arj(c: Canvas, doc):
     w, h = A4
     c.drawImage(img_path(SMALL_CAPS), 0, 0, width=w, height=h)
-    
+
 def onpage_etfs_cons(c: Canvas, doc):
     w, h = A4
     c.drawImage(img_path(ETFS_CONS), 0, 0, width=w, height=h)

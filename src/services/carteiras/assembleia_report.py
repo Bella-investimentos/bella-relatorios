@@ -7,6 +7,9 @@ logger = logging.getLogger(__name__)
 
 from .assembleia.builder import generate_assembleia_report
 from .assembleia.prep import enrich_payload_with_make_report  # <-- novo
+from src.services.s3.aws_s3_service import upload_pdf_to_s3
+from src.services.carteiras.assembleia.constants import NOME_RELATORIO_ASSEMBLEIA, BUCKET_RELATORIOS
+
 
 def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbol: Optional[str] = None) -> BytesIO:
     # 1) Enriquecer payload com as rotinas do make_report
@@ -30,9 +33,13 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
                 len(stocks_mod), len(stocks_arj), len(stocks_opp),
                 len(reits_cons), len(smallcaps_arj), len(crypto))
 
-    return generate_assembleia_report(
+    buffer =  generate_assembleia_report(
         bonds=bonds,
         etfs_cons=etfs_cons, etfs_mod=etfs_mod, etfs_agr=etfs_agr,
         stocks_mod=stocks_mod, stocks_arj=stocks_arj, stocks_opp=stocks_opp,
         reits_cons=reits_cons, smallcaps_arj=smallcaps_arj, crypto=crypto,
     )
+
+    upload_pdf_to_s3(buffer, NOME_RELATORIO_ASSEMBLEIA, BUCKET_RELATORIOS)
+
+    logger.info("Relatorio gerado com sucesso!")
