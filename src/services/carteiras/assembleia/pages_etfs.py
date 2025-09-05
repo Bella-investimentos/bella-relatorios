@@ -82,7 +82,7 @@ def _align_cards_to_chart(spec: dict) -> dict:
     return out
 
 
-def draw_etf_page(c: Canvas, etf: dict):
+def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
     # usa cópia alinhada para esta página
     spec = _align_cards_to_chart(ETF_SPEC)
 
@@ -111,8 +111,8 @@ def draw_etf_page(c: Canvas, etf: dict):
     )
     c.setFillColorRGB(0.20, 0.49, 0.87)
     c.setFont(*spec["subtitle"]["font"])
-    c.drawString(spec["subtitle"]["x"], spec["subtitle"]["y"], "Tipo de Ativo: ETF")
-
+    c.drawString(spec["subtitle"]["x"], spec["subtitle"]["y"], f"Tipo de Ativo: {kind_label}")
+    
     # =======================
     #   FUNÇÕES DE CARDS
     # =======================
@@ -223,3 +223,6 @@ def draw_etf_page(c: Canvas, etf: dict):
     c.setFillColorRGB(1, 1, 1)
     note = f"{e.get('company_name','')} ({e.get('symbol','')}) — resumo/nota opcional."
     wrap_and_draw(c, note, n["x"], n["y"] + n["h"], n["w"], n["lh"], n["font"], n["max_lines"])
+
+def draw_hedge_page(c: Canvas, asset: dict):
+    return draw_etf_page(c, asset, kind_label="Hedge")

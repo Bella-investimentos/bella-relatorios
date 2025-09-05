@@ -196,8 +196,8 @@ def enrich_payload_with_make_report(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     # (se usar smallcaps)
     enriched["smallcaps_arj"] = _prep_bucket_equities(enriched.get("smallcaps_arj"), is_etf=False)
-
     # Criptos
     enriched["crypto"] = _prep_bucket_crypto(enriched.get("crypto"))
+    enriched["hedge"] = _prep_bucket_equities(enriched.get("hedge"), is_etf=False)
 
     return enriched
