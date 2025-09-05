@@ -26,6 +26,8 @@ ETFS_CONS          = "Etfs_cons.png"
 ETFS_ARR           = "Etfs_arr.png"
 SMALL_CAPS        = "Small_caps.png"
 HEDGE             = "Hedge.png"
+NOME_RELATORIO_ASSEMBLEIA = "relatorio-assembleia.pdf"
+BUCKET_RELATORIOS = "bella-relatorios"
 
 
 def img_path(filename: str) -> str:

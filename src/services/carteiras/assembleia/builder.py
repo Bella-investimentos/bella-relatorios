@@ -3,6 +3,9 @@ from reportlab.platypus import SimpleDocTemplate, PageTemplate, Frame, Paragraph
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen.canvas import Canvas
+from datetime import datetime
+from reportlab.lib.colors import white, black
+
 
 # suas funções/páginas
 from .pages_static import onpage_acao_arr, onpage_capa, onpage_etfs_arr, onpage_etfs_cons, onpage_etfs_mod, onpage_noticias, onpage_perfil_cons, onpage_perfil_mod, onpage_perfil_arj, onpage_perfil_opp, onpage_acao_mod, onpage_acao_arr,  onpage_reits, onpage_smallcap_arj, onpage_crypto
@@ -82,11 +85,21 @@ def generate_assembleia_report(
                 except Exception:
                     pass
         return _onpage
+    
+    def onpage_capa_with_date(c: Canvas, doc):
+        onpage_capa(c, doc)
+
+        # Adiciona a data no rodapé
+        data_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        c.setFont("Helvetica", 9)
+        c.setFillColor(white)
+        c.drawRightString(A4[0] - 50, 20, f"{data_str}")
+        c.setFillColor(black)
 
     # -------------------------
     # Templates fixos
     # -------------------------
-    cover_t  = PageTemplate(id="Capa",     frames=[frame], onPage=onpage_capa)
+    cover_t  = PageTemplate(id="Capa", frames=[frame], onPage=onpage_capa_with_date)
     news_t   = PageTemplate(id="Noticias", frames=[frame], onPage=onpage_noticias)
     perfilcons_t = PageTemplate(id="PerfilConservador", frames=[frame], onPage=onpage_perfil_cons)
     perfilmod_t = PageTemplate(id="PerfilModerado", frames=[frame], onPage=onpage_perfil_mod)
