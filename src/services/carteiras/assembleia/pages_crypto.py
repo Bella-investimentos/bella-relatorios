@@ -21,6 +21,7 @@ def normalize_crypto(d: dict) -> dict:
         "target_price": d.get("target_price") or d.get("targetPrice"),
         "chart":        d.get("chart"),
         "logo_path":    d.get("logo_path") or d.get("logoPath"),
+        "note":         d.get("note") or "", 
     }
 
 # -----------------------------
@@ -29,7 +30,7 @@ def normalize_crypto(d: dict) -> dict:
 CRP_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
     "logo":     {"x": 60,  "y": 700, "w": 60, "h": 60},
-    "title":    {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 30), "max_lines": 1},
+    "title":    {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 26), "max_lines": 1},
     "subtitle": {"x": 140, "y": 680, "font": ("Helvetica-Bold", 15), "rgb": (0.15, 0.70, 0.55)},
 
     # mini-cards à esquerda (pretos) — manter nomes originais
@@ -163,6 +164,8 @@ def draw_crypto_page(c: Canvas, payload: dict):
 
     # ----- nota -----
     n = spec["note"]
-    c.setFillColorRGB(1, 1, 1)
-    note_txt = f'{d.get("company_name","")} ({d.get("symbol","")}) — visão geral.'
+    c.setFillColorRGB(1,1,1)
+    note_txt = d.get("note") or f'{d.get("company_name","")} ({d.get("symbol","")}) — visão geral.'
     wrap_and_draw(c, note_txt, n["x"], n["y"] + n["h"], n["w"], n["lh"], n["font"], n["max_lines"])
+
+

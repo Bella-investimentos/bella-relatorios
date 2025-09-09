@@ -16,9 +16,6 @@ import pandas as pd
 import tempfile
 from src.services.carteiras.pdf_generator import generate_pdf_buffer
 
-# =========================
-# Config / Env
-# =========================
 load_dotenv()
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 
@@ -56,8 +53,6 @@ def calculate_technical_indicators(bars: List[Any]):
         ema_200_value = None
 
     return ema_10_value, ema_20_value, ema_200_value, df
-
-
 
 def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[float], outdir="templates/static"):
     """
@@ -215,7 +210,6 @@ def _crypto_daily_from_fmp(symbol: str, years: int = 5) -> pd.DataFrame:
 
     return df[["date", "open", "high", "low", "close", "volume"]]
 
-
 def _to_weekly(df_daily: pd.DataFrame) -> pd.DataFrame:
     """Agrega diário → semanal, fechando na sexta (W-FRI)."""
     if df_daily is None or df_daily.empty:
@@ -234,17 +228,15 @@ def _to_weekly(df_daily: pd.DataFrame) -> pd.DataFrame:
     )
     return weekly
 
-
-# =========================
-# Dados de mercado
-# =========================
 def fetch_equity(
     symbol: str,
     quantity: float,
     is_etf: bool = False,
     antifragile: bool = False,
     target_price: Optional[float] = None,
-    score: str = "–"
+    score: str = "–",
+    vr: Optional[float] = None,   # <<< NOVO: volatilidade vinda do payload
+    vs: Optional[float] = None    # <<< OPCIONAL: valorização semanal vinda do payload
 ):
     """
     Busca preço (FMP), calcula indicadores semanais, dividend yield (FMP→YF fallback),
@@ -308,52 +300,64 @@ def fetch_equity(
         return _dividend_yield_fallback(sym, price__)
 
     def _cagr_10y(symbol: str, api_key: Optional[str] = FMP_API_KEY) -> float | None:
+        """
+        Retorna o retorno ANUALIZADO (fração) usando no máximo 10 anos de histórico.
+        - Se o ativo tiver <10 anos, usa todo o período disponível.
+        - FMP (serietype=line) como primária; Yahoo (10y mensal ajustado) como fallback.
+        Fórmula: (last / first) ** (1/years) - 1
+        """
+        import pandas as pd
         sym = symbol.strip().upper()
+        max_years = 10
 
-        # --- 1) Tenta via FMP ---
+        # ---------- 1) Tenta FMP ----------
         try:
             url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{sym}?serietype=line&apikey={api_key}"
-            response = requests.get(url, timeout=20)
-            response.raise_for_status()
-            data = response.json()
+            r = requests.get(url, timeout=20)
+            r.raise_for_status()
+            raw = r.json().get("historical", [])
+            if raw and isinstance(raw, list):
+                df = pd.DataFrame(raw)
+                if {"date", "close"}.issubset(df.columns):
+                    df["date"] = pd.to_datetime(df["date"])
+                    df = df.sort_values("date")
 
-            if "historical" in data and len(data["historical"]) > 2:
-                hist = list(reversed(data["historical"]))  # FMP vem invertido
-                first = float(hist[0]["close"])
-                last = float(hist[-1]["close"])
+                    # recorte: últimos até 10 anos; se tiver menos, usa tudo
+                    cutoff = pd.Timestamp.today() - pd.DateOffset(years=max_years)
+                    df_win = df[df["date"] >= cutoff]
+                    if len(df_win) < 2:
+                        df_win = df  # pouco histórico recente? usa tudo
 
-                from datetime import datetime
-                d0 = datetime.strptime(hist[0]["date"], "%Y-%m-%d")
-                d1 = datetime.strptime(hist[-1]["date"], "%Y-%m-%d")
-                years = (d1 - d0).days / 365.25
-
-                if first > 0 and years > 0:
-                    return (last / first) ** (1 / years) - 1.0
+                    first = float(df_win["close"].iloc[0])
+                    last  = float(df_win["close"].iloc[-1])
+                    years = (df_win["date"].iloc[-1] - df_win["date"].iloc[0]).days / 365.25
+                    if first > 0 and years > 0:
+                        return (last / first) ** (1.0 / years) - 1.0
         except Exception as e:
-            print(f"[WARN] FMP CAGR falhou para {sym}: {e}")
+            print(f"[WARN] FMP annualized (<=10y) falhou p/ {sym}: {e}")
 
-        # --- 2) Fallback via Yahoo Finance ---
+        # ---------- 2) Fallback Yahoo (10y mensal ajustado) ----------
         try:
             t = yf.Ticker(sym)
+            # pega até 10y; se o papel for novo, o Yahoo devolve menos mesmo
             hist = t.history(period="10y", interval="1mo", auto_adjust=True)
-            if not hist.empty and 'Close' in hist:
-                first = float(hist['Close'].iloc[0])
-                last = float(hist['Close'].iloc[-1])
-                years = (hist.index[-1] - hist.index[0]).days / 365.25
-                if first > 0 and years > 0:
-                    return (last / first) ** (1 / years) - 1.0
+            if not hist.empty and "Close" in hist:
+                # remove NaNs
+                s = hist["Close"].dropna()
+                if len(s) >= 2:
+                    first = float(s.iloc[0])
+                    last  = float(s.iloc[-1])
+                    years = (s.index[-1] - s.index[0]).days / 365.25
+                    if first > 0 and years > 0:
+                        return (last / first) ** (1.0 / years) - 1.0
         except Exception as e:
-            print(f"[WARN] YF CAGR falhou para {sym}: {e}")
+            print(f"[WARN] YF annualized (<=10y) falhou p/ {sym}: {e}")
 
         return None
 
-    # ----------------------------
-    # Corpo principal
-    # ----------------------------
     try:
         sym = symbol.strip().upper()
 
-        # preço atual via FMP
         price_response = requests.get(
             f"https://financialmodelingprep.com/api/v3/quote/{sym}?apikey={FMP_API_KEY}",
             timeout=20
@@ -369,7 +373,12 @@ def fetch_equity(
         # barras semanais via FMP
         vs_pct = None
         vp_pct = None
-
+        vr_pct = None  
+        if vr is not None:
+            try:
+                vr_pct = float(vr)
+            except Exception:
+                vr_pct = None  
         weekly_bars: list = []
         historical_response = requests.get(
             f"https://financialmodelingprep.com/api/v3/historical-price-full/{sym}?timeseries=260&apikey={FMP_API_KEY}",
@@ -454,7 +463,9 @@ def fetch_equity(
             vs_pct = round(vs_pct, 2)
         if vp_pct is not None:
             vp_pct = round(vp_pct, 2)
-
+        if vr_pct is not None:
+            vr_pct = round(vr_pct, 2)
+            
         return {
             "symbol": sym,
             "unit_price": float(price),
@@ -480,9 +491,9 @@ def fetch_equity(
             "averageGrowth": round(cagr_10y * 100, 1) if cagr_10y is not None else None,
             "antifragile_entry_price": round(antifragile_entry_price, 4) if antifragile_entry_price else None,
             "antifragileEntryPrice": round(antifragile_entry_price, 4) if antifragile_entry_price else None,
-            "vs": vs_pct,      # valorização semanal em %
-            "vp": vp_pct,      # potencial de valorização em %
-            # "vr": vr_val  # quando definirmos a fórmula
+            "vs": vs_pct,      
+            "vp": vp_pct,      
+            "vr": vr  
         }
 
     except Exception as e:
@@ -492,7 +503,7 @@ def _crypto_daily_from_fmp(symbol: str, years: int = 5) -> pd.DataFrame:
     api_key = os.getenv("FMP_API_KEY")
     if not api_key:
         return pd.DataFrame()
-
+ 
     sym = symbol.upper().strip().replace("-", "")
     if not sym.endswith("USD"):
         sym = f"{sym}USD"
@@ -795,20 +806,42 @@ def build_report_from_payload(payload: Dict[str, Any]) -> str:
             'description': b.get('description') if isinstance(b.get('description'), list) else ([b.get('description')] if b.get('description') else []),
         })
 
+    def _num(x):
+        if x is None: 
+            return None
+        if isinstance(x, (int, float)): 
+            return float(x)
+        s = str(x).strip().replace(".", "").replace(",", ".")
+        try:
+            return float(s)
+        except Exception:
+            return None
+
+
     # Equities e ETFs (buscam dados de mercado)
     def _mk_equities(items: List[Dict[str, Any]], is_etf: bool, antifragile: bool = False):
         out = []
         for it in items or []:
-            sym = str(it["symbol"]).upper().strip()
-            qty = float(it["quantity"])
-            tp = it.get("target_price")
-            tp = float(tp) if tp is not None else None
-            score = it.get("score")
-            score = float(score) if score is not None else None
-            
-            out.append(fetch_equity(sym, qty, is_etf=is_etf, antifragile=antifragile, 
-                                target_price=tp, score=score))  
+            sym   = str(it.get("symbol", "")).upper().strip()
+            qty   = _num(it.get("quantity")) or 0.0
+            tp    = _num(it.get("target_price"))
+            score = _num(it.get("score"))
+            vr    = _num(it.get("vr"))   # <<< volatilidade vinda do payload
+            vs    = _num(it.get("vs"))   # <<< valorização semanal (se vier no payload)
+
+            out.append(
+                fetch_equity(
+                    sym, qty,
+                    is_etf=is_etf,
+                    antifragile=antifragile,
+                    target_price=tp,
+                    score=score,
+                    vr=vr,          # <<< passe adiante
+                    vs=vs           # <<< opcional: passe adiante
+                )
+            )
         return out
+
 
     stocks = _mk_equities(payload.get("stocks"), is_etf=False)
     opp_stocks = _mk_equities(payload.get("opp_stocks"), is_etf=False)
