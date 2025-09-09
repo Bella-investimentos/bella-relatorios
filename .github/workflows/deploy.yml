@@ -31,10 +31,11 @@ jobs:
       - name: Load and run Docker image on EC2
         run: |
           ssh -i bella-key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            docker system prune -af
-            docker load -i bella-investimentos-image.tar
             docker stop bella-investimentos-image || true
             docker rm bella-investimentos-image || true
+            docker rmi bella-investimentos-image || true
+            docker system prune -af
+            docker load -i bella-investimentos-image.tar
             docker run -d \
               --name bella-investimentos-image \
               -p 8080:8080 \
