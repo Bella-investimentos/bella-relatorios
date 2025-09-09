@@ -7,7 +7,7 @@
       "company": "Deere & Company",
       "sector": "Máquinas e Equipamentos Agrícolas",
       "maturity": "15/05/2030",
-      "unit_price": 1197.21,
+      "unit_price": 1207.28,
       "coupon": 8.1,
       "prev_unit_price": 1206.44,
       "description": [
@@ -30,7 +30,7 @@
       "company": "Chevron Corporation",
       "sector": "Energia",
       "maturity": "01/04/2027",
-      "unit_price": 1176.97,
+      "unit_price": 1133.86,
       "coupon": 8.0,
       "prev_unit_price": 1111.41,
       "description": [
@@ -56,7 +56,7 @@
       "company": "The Walt Disney Company",
       "sector": "Mídia e Entretenimento",
       "maturity": "30/06/2028",
-      "unit_price": 1107.63,
+      "unit_price": 1111.32,
       "coupon": 7.28,
       "prev_unit_price": 1111.41,
       "description": [
@@ -81,7 +81,7 @@
       "company": "ConocoPhillips",
       "sector": "Energia",
       "maturity": "30/03/2029",
-      "unit_price": 1140.88,
+      "unit_price": 1143.00,
       "coupon": 7.0,
       "prev_unit_price": 1138.81,
       "description": [
@@ -105,7 +105,7 @@
       "company": "Comcast Corporation",
       "sector": "Telecomunicações e Mídia",
       "maturity": "15/02/2028",
-      "unit_price": 1082.61,
+      "unit_price": 1084.96,
       "coupon": 7.125,
       "prev_unit_price": 1081.84,
       "description": [
@@ -131,7 +131,7 @@
       "company": "Waste Management Inc.",
       "sector": "Gestão de Resíduos / Serviços Ambientais",
       "maturity": "15/07/2028",
-      "unit_price": 1075.12,
+      "unit_price": 1103.83,
       "coupon": 7.0,
       "prev_unit_price": 1070.85,
       "description": [

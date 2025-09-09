@@ -1,0 +1,7 @@
+{
+  "SPY": "ETF que replica o S&P 500. Alta liquidez e baixa taxa. Exposição ampla a large caps dos EUA. Útil como núcleo da carteira. Volatilidade moderada e forte histórico.",
+  "SGOV": "ETF de T-Bills 0-3 meses. Risco baixo e duration mínima. Indicada para reserva e proteção contra volatilidade. Rendimento atrelado a juros de curto prazo.",
+  "NVDA": "Líder em GPUs e AI. Receita dependente de data centers, jogos e automotivo. Forte crescimento, porém com riscos de competição e ciclos de semicondutores.",
+  "O": "REIT focado em varejo. Contratos de longo prazo triple-net. Fluxo de dividendos estável, sensível a taxas de juros. Diversificação setorial e geográfica.",
+  "BTC": "Cripto de maior capitalização. Tese de escassez digital e reserva de valor. Alta volatilidade e ciclos acentuados. Exige sizing conservador e visão de longo prazo."
+}
