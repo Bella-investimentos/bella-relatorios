@@ -524,7 +524,7 @@ def _crypto_daily_from_fmp(symbol: str, years: int = 5) -> pd.DataFrame:
     def _chart_1d():
         url = f"https://financialmodelingprep.com/api/v3/historical-chart/1day/{sym}"
         try:
-            r = s.get(url, params={"apikey": api_key}, timeout=20)
+            r = s.get(url, params={"apikey": api_key}, timeout=30)
             r.raise_for_status()
             return r.json()
         except Exception:

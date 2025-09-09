@@ -15,6 +15,15 @@ from .utils import (
 # -------------------------------------------------
 # Fetchers / Normalização
 # -------------------------------------------------
+
+def get_fmp_key() -> str:
+    v = (os.getenv("FMP_API_KEY") or "").strip()     # remove espaços/linhas
+    v = v.replace("\r", "").replace("\n", "")        # remove quebras
+    # Se o .env estiver errado e a variável vier como "FMP_API_KEY=xxxx"
+    if "FMP_API_KEY=" in v:
+        v = v.split("=", 1)[1]
+    return v
+
 def _norm_news_item(d: dict) -> dict:
     """Normaliza item de notícia vindo de /general_news ou /stock_news."""
     return {
@@ -136,7 +145,7 @@ def draw_news_page(
 
     # Busca notícias do símbolo
     a = normalize_asset_minimal(asset)
-    api_key = api_key or os.getenv("FMP_API_KEY")
+    api_key = api_key or get_fmp_key()
     arts = fetch_asset_news(api_key, a["symbol"], limit=2)
 
     def _draw_card(box, art: dict | None):
@@ -162,7 +171,7 @@ def draw_news_page(
         img_w = W - 2 * img_pad
         img_h = H - strip_h
 
-        img_url = art.get("image")
+        img_url = art.get("image") or art.get("image_url") 
         if img_url:
             try:
                 if img_url:
