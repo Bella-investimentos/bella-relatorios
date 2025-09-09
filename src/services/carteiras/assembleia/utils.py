@@ -252,8 +252,6 @@ def draw_justified_paragraph(c, text, x, y, w, h, style=JUSTIFIED_WHITE):
     pw, ph = p.wrap(w, h)              # calcula tamanho que cabe
     p.drawOn(c, x, y + h - ph)         # desenha colado no topo da caixa
     
-# utils.py
-# utils.py
 def draw_label_value_centered(
     c,
     box: dict,
@@ -285,7 +283,7 @@ def draw_label_value_centered(
         c.setFillColorRGB(*value_color)
     txt = "" if value_text is None else str(value_text)
     if dash_if_empty and (txt.strip() == ""):
-        txt = "–"
+        txt = " "
 
     val_h = value_font[1]
     vy = y + (h - val_h) / 2 + val_h * 0.85  # baseline ~centro visual

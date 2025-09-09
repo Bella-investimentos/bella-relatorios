@@ -15,7 +15,7 @@ STK_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
 
     "logo":     {"x": 60,  "y": 700, "w": 60, "h": 60},
-    "title":    {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 30), "max_lines": 2},
+    "title":    {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 26), "max_lines": 2},
     "subtitle": {"x": 140, "y": 665, "font": ("Helvetica-Bold", 16)},
 
     # gráfico
@@ -91,6 +91,7 @@ def normalize_stock(s: dict) -> dict:
         "sector": s.get("sector") or "",
         "asset_type": "STOCK",
         "asset_label": s.get("asset_label") or "Ação",
+        "note": s.get("note") or "",
     }
 
 def draw_stock_page(
@@ -171,17 +172,16 @@ def draw_stock_page(
         draw_centered_in_box(c, value, ix, iy, iw, ih, ("Helvetica-Bold", 22))
 
     # valores formatados
-    price_str = fmt_currency_usd(s.get("unit_price")) if s.get("unit_price") is not None else "–"
+    price_str = fmt_currency_usd(s.get("unit_price")) if s.get("unit_price") is not None else " "
     vp_str    = fmt_pct(s.get("vp"))
-    score_str = f"{float(s['score']):.1f}" if s.get("score") is not None else "–"
-
+    score_str = f"{float(s['score']):.1f}" if s.get("score") is not None else " "
     div_val = s.get("dividend_yield")
     if div_val is not None and 0 <= div_val <= 1:
         div_val *= 100.0
-    div_str  = f"{div_val:.2f}%" if div_val is not None else "–"
+    div_str  = f"{div_val:.2f}%" if div_val is not None else " "
 
-    vr_str = f"{s['vr']:.2f}"   if s.get("vr") is not None else "–"
-    vs_str = f"{s['vs']:+.2f}%" if s.get("vs") is not None else "–"
+    vr_str = f"{s['vr']:.2f}"   if s.get("vr") is not None else " "
+    vs_str = f"{s['vs']:+.2f}%" if s.get("vs") is not None else " "
 
     ema10_str = fmt_currency_usd(s["ema_10"])       if s.get("ema_10")       is not None else "–"
     ema20_str = fmt_currency_usd(s["ema_20"])       if s.get("ema_20")       is not None else "–"
@@ -217,8 +217,10 @@ def draw_stock_page(
     # nota
     n = spec["note"]
     c.setFillColorRGB(1,1,1)
-    note_txt = f"{s.get('company_name','')} ({s.get('symbol','')}) — visão geral/nota."
+    note_txt = s.get("note") or f"{s.get('company_name','')} ({s.get('symbol','')}) — visão geral/nota."
     wrap_and_draw(c, note_txt, n["x"], n["y"] + n["h"], n["w"], n["lh"], n["font"], n["max_lines"])
+
+
 
 def normalize_reit(d: dict) -> dict:
     m = normalize_stock(d)

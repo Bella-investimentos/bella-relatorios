@@ -194,6 +194,6 @@ def onpage_reits(c: Canvas, doc):
     w, h = A4
     c.drawImage(img_path(REITS), 0, 0, width=w, height=h)
     
-def hedge(c: Canvas, doc):
+def onpage_hedge(c: Canvas, doc):
     w, h = A4
     c.drawImage(img_path(HEDGE), 0, 0, width=w, height=h)

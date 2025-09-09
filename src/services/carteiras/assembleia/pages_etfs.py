@@ -13,7 +13,7 @@ from .utils import fmt_currency_usd, wrap_and_draw, draw_centered_in_box
 ETF_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
     "logo":   {"x": 60,  "y": 700, "w": 60, "h": 60},
-    "title":  {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 30), "max_lines": 2},
+    "title":  {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 26), "max_lines": 2},
     "subtitle": {"x": 140, "y": 665, "font": ("Helvetica-Bold", 16)},
 
     # gráfico + nota (mantém sua largura base)
@@ -30,7 +30,7 @@ ETF_SPEC = {
 
     "card_ema10": {"x": 230, "y": 445, "w": 140, "h": 85},
     "card_ema20": {"x": 400, "y": 445, "w": 140, "h": 85},
-    "card_meta":  {"x":0,"y":0,"w":0,"h":0},
+    
 }
 
 def normalize_etf(e: dict) -> dict:
@@ -42,7 +42,6 @@ def normalize_etf(e: dict) -> dict:
         "average_growth": e.get("average_growth") if "average_growth" in e else e.get("averageGrowth"),
         "ema_10": e.get("ema_10") if "ema_10" in e else e.get("ema10"),
         "ema_20": e.get("ema_20") if "ema_20" in e else e.get("ema20"),
-        "target_price": e.get("target_price") if "target_price" in e else e.get("targetPrice"),  # <-- NOVO
         "chart": e.get("chart"),
         "vr": e.get("vr"),
         "vs": e.get("vs"),
@@ -50,6 +49,7 @@ def normalize_etf(e: dict) -> dict:
         "logo_path": e.get("logo_path") or e.get("logoPath"),
         "sector": e.get("sector") or "",
         "asset_type": "ETF",
+        "note": e.get("note") or "",
     }
 
 def _align_cards_to_chart(spec: dict) -> dict:
@@ -77,7 +77,6 @@ def _align_cards_to_chart(spec: dict) -> dict:
     # 3ª linha (EMA10/EMA20/META)
     out["card_ema10"].update(x=int(x1), y=y3, w=int(col_w), h=h3)
     out["card_ema20"].update(x=int(x2), y=y3, w=int(col_w), h=h3)
-    out["card_meta"].update( x=int(x0), y=y3, w=int(col_w), h=h3)   # <-- agora META ocupa a 1ª coluna
 
     return out
 
@@ -85,6 +84,7 @@ def _align_cards_to_chart(spec: dict) -> dict:
 def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
     # usa cópia alinhada para esta página
     spec = _align_cards_to_chart(ETF_SPEC)
+    
 
     w, h = A4
     c.drawImage(img_path(spec["bg"]), 0, 0, width=w, height=h)
@@ -141,17 +141,6 @@ def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
             label_color=(1,1,1), value_color=(0.10,0.80,0.35)
         )
 
-    def blue_card(x, y, w, h, label, value):
-        c.setFillColorRGB(0.06, 0.06, 0.06)
-        c.setStrokeColorRGB(0.20, 0.55, 0.95); c.setLineWidth(2)
-        c.roundRect(x, y, w, h, 8, stroke=1, fill=1)
-        draw_label_value_centered(
-            c, {"x": x, "y": y, "w": w, "h": h},
-            label, value,
-            label_font=BIG_LBL, value_font=BIG_VAL, pad_top=CARD_PAD["t"],
-            label_color=(1,1,1), value_color=(0.75,0.85,1.0)
-        )
-
     def mini_card_box(box, label, value_text):
         x, y, w, h = box["x"], box["y"], box["w"], box["h"]
         c.setFillColorRGB(0.06, 0.06, 0.06)
@@ -159,7 +148,7 @@ def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
         c.roundRect(x, y, w, h, MINI_R, stroke=1, fill=1)
         draw_label_value_centered(
             c, box, label, value_text,
-            label_font=MINI_LBL, value_font=MINI_VAL, pad_top=MINI_PAD_LOCAL["t"],
+            label_font=MINI_LBL, value_font=MINI_VAL, pad_top=MINI_PAD_LOCAL["t"] + 8,
         )
 
     # =======================
@@ -175,19 +164,17 @@ def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
     cagr_txt  = "–" if cagr is None else f"{cagr:.2f}%"
 
     # 2ª linha
-    vr_txt = "–" if e.get("vr") in (None, "") else f"{e['vr']}"
+    vr_txt = " " if e.get("vr") in (None, "") else f"{e['vr']}"
     if e.get("vs") is None:
-        vs_txt = "–"
+        vs_txt = " "
     else:
         vs_txt = f"+{e['vs']:.2f}%" if e["vs"] >= 0 else f"{e['vs']:.2f}%"
 
     # 3ª linha
     ema10_val = e.get("ema_10")
     ema20_val = e.get("ema_20")
-    meta_val  = e.get("target_price")
     ema10_txt = "–" if ema10_val is None else fmt_currency_usd(ema10_val)
     ema20_txt = "–" if ema20_val is None else fmt_currency_usd(ema20_val)
-    meta_txt  = "–" if meta_val  is None else fmt_currency_usd(meta_val)
 
     # =======================
     #       RENDER
@@ -197,15 +184,15 @@ def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
     black_card(**spec["card_div"],   label="Dividendos",  value=div_txt)
     black_card(**spec["card_cagr"],  label="Crescimento Médio a.a", value=cagr_txt)
 
-    # 2ª linha
-    mini_card_box(spec["vr_box"], "VR:", vr_txt)
-    mini_card_box(spec["vs_box"], "VS:", vs_txt)
+    
 
     # 3ª linha
     green_card(**spec["card_ema10"], label="Entrada (EMA 10)", value=ema10_txt)
     green_card(**spec["card_ema20"], label="Entrada (EMA 20)", value=ema20_txt)
-    blue_card (**spec["card_meta"],  label="Meta (Saída)",     value=meta_txt)
 
+    # 2ª linha
+    mini_card_box(spec["vr_box"], "VR:", vr_txt)
+    mini_card_box(spec["vs_box"], "VS:", vs_txt)
     # ----- GRÁFICO
     g = spec["chart"]
     if e.get("chart") and os.path.exists(e["chart"]):
@@ -221,8 +208,9 @@ def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
     # ----- NOTA
     n = spec["note"]
     c.setFillColorRGB(1, 1, 1)
-    note = f"{e.get('company_name','')} ({e.get('symbol','')}) — resumo/nota opcional."
+    note = e.get("note") or f"{e.get('company_name','')} ({e.get('symbol','')}) — resumo/nota opcional."
     wrap_and_draw(c, note, n["x"], n["y"] + n["h"], n["w"], n["lh"], n["font"], n["max_lines"])
+
 
 def draw_hedge_page(c: Canvas, asset: dict):
     return draw_etf_page(c, asset, kind_label="Hedge")

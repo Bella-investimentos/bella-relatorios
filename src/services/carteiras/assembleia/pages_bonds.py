@@ -6,9 +6,9 @@ from .utils import draw_justified_paragraph, fmt_currency_usd, fmt_coupon, fmt_d
 BOND_SPEC = {
     "bg": BOND_PAGE_BG_IMG,
     "logo":   {"x": 68,  "y": 680, "w": 60,  "h": 60},
-    "title":  {"x": 140, "y": 700, "w": 400, "lh": 24, "font": ("Helvetica-Bold", 30), "max_lines": 2},
-    "type":   {"x": 260, "y": 645, "font": ("Helvetica", 14)},
-    "sector": {"x": 405, "y": 645, "font": ("Helvetica", 14)},
+    "title":  {"x": 140, "y": 700, "w": 400, "lh": 24, "font": ("Helvetica-Bold", 26), "max_lines": 2},
+    "type":   {"x": 150, "y": 630, "font": ("Helvetica", 14)},
+    "sector": {"x": 320, "y": 632, "font": ("Helvetica", 14)},
     "card_venc": {"x":  50, "y": 520, "w": 180, "h": 70, "font": ("Helvetica-Bold", 20)},
     "card_cupom":{"x": 215, "y": 520, "w": 180, "h": 70, "font": ("Helvetica-Bold", 24)},
     "card_preco":{"x": 365, "y": 520, "w": 180, "h": 70, "font": ("Helvetica-Bold", 20)},
@@ -80,8 +80,8 @@ def draw_bond_page(c: Canvas, bond: dict):
     prev_txt = fmt_currency_usd(b.get("prev_unit_price")) if b.get("prev_unit_price") is not None else "--"
     px, py = spec["card_preco"]["x"], spec["card_preco"]["y"]
     c.setFillColorRGB(1, 1, 1)
-    c.setFont("Helvetica", 8)
-    c.drawString(px + 50, py - 2, f"Preço anterior: {prev_txt}")
+    c.setFont("Helvetica", 10)
+    c.drawString(px + 30, py - 2, f"Preço anterior: {prev_txt}")
     
     # descrição (texto preto)
     box = spec["desc_box"]
