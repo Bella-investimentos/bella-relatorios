@@ -7,3 +7,4 @@ venv/
 charts/
 *api_key*
 *.key
+templates/static/
