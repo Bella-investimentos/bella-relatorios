@@ -18,7 +18,7 @@ from .pages_static import (
     onpage_etfs_cons, onpage_etfs_mod, onpage_etfs_arr,
     onpage_acao_mod, onpage_acao_arr,
     onpage_reits, onpage_smallcap_arj,
-    onpage_crypto, onpage_hedge,  # <- garanta que onpage_hedge exista em pages_static.py
+    onpage_crypto, onpage_hedge, onpage_monthly 
 )
 
 # Páginas “dinâmicas” (desenham conteúdo a partir de dados)
@@ -27,7 +27,7 @@ from .pages_etfs import draw_etf_page, draw_hedge_page
 from .pages_stocks import draw_stock_page, draw_reit_page, draw_smallcap_page
 from .pages_crypto import draw_crypto_page
 from .pages_news import draw_news_page
-from .pages_monthly import draw_monthly_summary_page
+from .pages_monthly import draw_monthly_cards_page
 
 from .constants import img_path, ETF_PAGE_BG_IMG, NEWS_PAGE_BG_IMG
 
@@ -120,34 +120,66 @@ def generate_assembleia_report(
         c.setFillColor(white)
         c.drawRightString(A4[0] - 50, 20, f"{data_str}")
         c.setFillColor(black)
+        
+    # Substitua TODA a seção monthly no builder.py (desde paginate_monthly até o final da seção)
 
-    def paginate_monthly(rows, per_page=18, label: str = ""):
+    def paginate_monthly(rows, per_page=8, label: str = ""):
+        """
+        Pagina os dados monthly de forma flexível
+        
+        Args:
+            rows: Lista de dados dos ativos
+            per_page: Número de itens por página (padrão 6)
+            label: Label para todas as páginas
+        
+        Returns:
+            Lista de páginas, cada uma com estrutura {"label": str, "rows": list}
+        """
+        print(f"[DEBUG] paginate_monthly: recebeu {len(rows)} rows, per_page={per_page}, label='{label}'")
+        
+        if not rows:
+            print("[DEBUG] Sem rows, criando página vazia")
+            return [{"label": label, "rows": []}]
+        
         pages = []
-        cur = []
-        for r in rows:
-            cur.append(r)
-            if len(cur) >= per_page:
-                pages.append({"label": label, "rows": cur})
-                cur = []
-        if cur:
-            pages.append({"label": label, "rows": cur})
+        total_rows = len(rows)
+        
+        for i in range(0, total_rows, per_page):
+            chunk = rows[i:i + per_page]
+            page_num = (i // per_page) + 1
+            total_pages = (total_rows + per_page - 1) // per_page  # ceil division
+            
+            pages.append({
+                "label": label,
+                "rows": chunk,
+                "page_info": f"{page_num}/{total_pages}"  # info extra para debug
+            })
+            
+            print(f"[DEBUG] Página {page_num}/{total_pages} criada com {len(chunk)} rows")
+        
+        print(f"[DEBUG] Total de {len(pages)} páginas criadas")
         return pages
 
-    def monthly_onpage_factory(pages: list):
-        state = {"i": 0}
+    _monthly_pages = paginate_monthly(monthly_rows, per_page=8, label=monthly_label)
 
-        def _onpage(c: Canvas, _doc):
-            if state["i"] < len(pages):
-                page = pages[state["i"]]
-                draw_monthly_summary_page(
-                    c,
-                    page["rows"],
-                    month_label=page.get("label", "")
-                )
-                state["i"] += 1
+    # Criar templates individuais para cada página monthly
+    monthly_templates = []
+    monthly_static_t = PageTemplate(id="MONTHLY_STATIC", frames=[frame], onPage=onpage_monthly)
 
-        return _onpage
-
+    # Criar um template para cada página de dados
+    for i, page_data in enumerate(_monthly_pages):
+        template_id = f"MONTHLY_DYN_{i}"
+        
+        def make_monthly_onpage(page=page_data, page_num=i):
+            def _onpage(c: Canvas, _doc):
+                print(f"[DEBUG] Template {template_id} - Desenhando página {page_num} com {len(page.get('rows', []))} rows")
+                draw_monthly_cards_page(c, page)
+            return _onpage
+        
+        template = PageTemplate(id=template_id, frames=[frame], onPage=make_monthly_onpage())
+        monthly_templates.append(template)
+        print(f"[DEBUG] Criado template {template_id} para página {i}")
+        
     # ---------- Templates FIXOS (capas/perfis/headers) ----------
     cover_t      = PageTemplate(id="Capa",                frames=[frame], onPage=onpage_capa_with_date)
     news_t       = PageTemplate(id="Noticias",            frames=[frame], onPage=onpage_noticias)
@@ -164,6 +196,7 @@ def generate_assembleia_report(
     etfs_cons_hdr= PageTemplate(id="Etfs_cons",           frames=[frame], onPage=onpage_etfs_cons)
     etfs_arr_hdr = PageTemplate(id="Etfs_arr",            frames=[frame], onPage=onpage_etfs_arr)
     hedge_hdr_t  = PageTemplate(id="HEDGE_HDR",           frames=[frame], onPage=onpage_hedge)
+    monthly_static_t = PageTemplate(id="MONTHLY_STATIC",  frames=[frame], onPage=onpage_monthly)
 
     # ---------- Templates DINÂMICOS (um item por página) ----------
     etf_cons_t      = PageTemplate(id="ETF_CONS",      frames=[frame], onPage=paged_onpage_factory(draw_etf_page,   etfs_cons, ETF_PAGE_BG_IMG))
@@ -196,15 +229,7 @@ def generate_assembleia_report(
     hedge_t          = PageTemplate(id="HEDGE",          frames=[frame], onPage=paged_onpage_factory(draw_hedge_page,    hedge,         ETF_PAGE_BG_IMG))
     hedge_news_t     = PageTemplate(id="HEDGE_NEWS",     frames=[frame], onPage=news_onpage_factory(hedge))
 
-    # ---------- MONTHLY (opcional) ----------
-    monthly_tpl = None
-    if monthly_rows:
-        _monthly_pages = paginate_monthly(monthly_rows, per_page=18, label=monthly_label)
-        monthly_tpl = PageTemplate(
-            id="MONTHLY",
-            frames=[frame],
-            onPage=monthly_onpage_factory(_monthly_pages),
-        )
+    mensal_t         = PageTemplate(id="MENSAL",         frames=[frame], onPage=paged_onpage_factory( draw_monthly_cards_page, ETF_PAGE_BG_IMG))
 
     # ---------- Registrar templates ----------
     templates = [
@@ -223,12 +248,11 @@ def generate_assembleia_report(
         smcap_arj_t, smcap_arj_news_t,
         crp_t, crp_news_t,
         hedge_hdr_t, hedge_t, hedge_news_t,
+        monthly_static_t,
+        *monthly_templates,
     ]
-    if monthly_tpl:
-        templates.append(monthly_tpl)
-
+   
     doc.addPageTemplates(templates)
-
     # ---------- Helpers de Story ----------
     def add_bonds(story, items):
         if not items:
@@ -261,60 +285,128 @@ def generate_assembleia_report(
 
     # ---------- Montagem do Story ----------
     Story = []
-    # capa e perfis “fixos” que você já usa em sequência
-    Story.append(blank); Story.append(NextPageTemplate("Noticias"));            Story.append(PageBreak())
-    Story.append(blank); Story.append(NextPageTemplate("PerfilConservador"));   Story.append(PageBreak())
+
+    # Capa
+    Story.append(NextPageTemplate("Capa"))
+    Story.append(PageBreak())
+    Story.append(blank)
+
+    # Notícias
+    Story.append(NextPageTemplate("Noticias"))
+    Story.append(PageBreak())
+    Story.append(blank)
+
+    # Perfil Conservador
+    Story.append(NextPageTemplate("PerfilConservador"))
+    Story.append(PageBreak())
     Story.append(blank)
 
     # BONDS
     add_bonds(Story, bonds)
 
+    # REITs Conservadores
     if reits_cons:
-        Story.append(blank); Story.append(NextPageTemplate("Reits_conservadores")); Story.append(PageBreak())
+        Story.append(NextPageTemplate("Reits_conservadores"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "REIT_CONS", "REIT_CONS_NEWS", reits_cons)
 
+    # ETFs Conservadores
     if etfs_cons:
-        Story.append(blank); Story.append(NextPageTemplate("Etfs_cons")); Story.append(PageBreak())
+        Story.append(NextPageTemplate("Etfs_cons"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "ETF_CONS", "ETF_CONS_NEWS", etfs_cons)
 
-    Story.append(blank); Story.append(NextPageTemplate("PerfilModerado")); Story.append(PageBreak())
+    # Perfil Moderado
+    Story.append(NextPageTemplate("PerfilModerado"))
+    Story.append(PageBreak())
+    Story.append(blank)
+
+    # ETFs Moderados
     if etfs_mod:
-        Story.append(blank); Story.append(NextPageTemplate("Etfs_mod"));      Story.append(PageBreak())
+        Story.append(NextPageTemplate("Etfs_mod"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "ETF_MOD", "ETF_MOD_NEWS", etfs_mod)
+
+    # Ações Moderadas
     if stocks_mod:
-        Story.append(blank); Story.append(NextPageTemplate("Acoes_moderadas")); Story.append(PageBreak())
+        Story.append(NextPageTemplate("Acoes_moderadas"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "STK_MOD", "STK_MOD_NEWS", stocks_mod)
 
-    Story.append(blank); Story.append(NextPageTemplate("PerfilArrojado")); Story.append(PageBreak())
+    # Perfil Arrojado
+    Story.append(NextPageTemplate("PerfilArrojado"))
+    Story.append(PageBreak())
+    Story.append(blank)
+
+    # ETFs Agressivos
     if etfs_agr:
-        Story.append(blank); Story.append(NextPageTemplate("Etfs_arr"));      Story.append(PageBreak())
+        Story.append(NextPageTemplate("Etfs_arr"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "ETF_AGR", "ETF_AGR_NEWS", etfs_agr)
+
+    # Ações Arrojadas
     if stocks_arj:
-        Story.append(blank); Story.append(NextPageTemplate("Acoes_arrojadas")); Story.append(PageBreak())
+        Story.append(NextPageTemplate("Acoes_arrojadas"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "STK_ARJ", "STK_ARJ_NEWS", stocks_arj)
 
+    # Hedge
     if hedge:
-        Story.append(blank); Story.append(NextPageTemplate("HEDGE_HDR")); Story.append(PageBreak())
+        Story.append(NextPageTemplate("HEDGE_HDR"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "HEDGE", "HEDGE_NEWS", hedge)
 
+    # Oportunidades
     if stocks_opp:
-        Story.append(blank); Story.append(NextPageTemplate("Oportunidade")); Story.append(PageBreak())
+        Story.append(NextPageTemplate("Oportunidade"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "STK_OPP", "STK_OPP_NEWS", stocks_opp)
 
+    # Small Caps
     if smallcaps_arj:
-        Story.append(blank); Story.append(NextPageTemplate("Small_caps")); Story.append(PageBreak())
+        Story.append(NextPageTemplate("Small_caps"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "SMCAP_ARJ", "SMCAP_ARJ_NEWS", smallcaps_arj)
 
+    # Crypto
     if crypto:
-        Story.append(blank); Story.append(NextPageTemplate("Crypto")); Story.append(PageBreak())
+        Story.append(NextPageTemplate("Crypto"))
+        Story.append(PageBreak())
+        Story.append(blank)
         add_asset_section(Story, "CRP", "CRP_NEWS", crypto)
 
-    if monthly_rows:
-        Story.append(blank)
-        Story.append(NextPageTemplate("MONTHLY"))
-        Story.append(PageBreak())
-        # As páginas seguintes de MONTHLY são tratadas pelo factory via estado
+    # ===== PÁGINAS MENSAIS =====
+    print(f"[DEBUG] Iniciando seção monthly com {len(monthly_rows)} rows")
+    print(f"[DEBUG] Total de páginas monthly: {len(_monthly_pages)}")
 
+    if _monthly_pages:
+        # Página estática (header)
+        Story.append(NextPageTemplate("MONTHLY_STATIC"))
+        Story.append(PageBreak())
+        Story.append(blank)
+        print("[DEBUG] Página estática monthly adicionada")
+        
+        # Adicionar cada página dinâmica com seu template específico
+        for i, page_data in enumerate(_monthly_pages):
+            template_id = f"MONTHLY_DYN_{i}"
+            
+            Story.append(NextPageTemplate(template_id))
+            Story.append(PageBreak())
+            Story.append(Paragraph("", styles["Normal"]))  # Conteúdo mínimo para ativar onPage
+            
+            print(f"[DEBUG] Página {template_id} adicionada com {len(page_data.get('rows', []))} rows")
+
+    print(f"[DEBUG] Story montado com {len(Story)} elementos")
+    
     # ---------- Render ----------
     doc.build(Story)
     buffer.seek(0)
