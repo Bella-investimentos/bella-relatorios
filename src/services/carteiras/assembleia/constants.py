@@ -28,6 +28,7 @@ SMALL_CAPS        = "Small_caps.png"
 HEDGE             = "Hedge.png"
 NOME_RELATORIO_ASSEMBLEIA = "relatorio-assembleia.pdf"
 BUCKET_RELATORIOS = "bella-relatorios"
+MENSAL = "Mensal.png"
 
 
 def img_path(filename: str) -> str:
@@ -58,7 +59,7 @@ NEWS_SPEC = {
 MINI_LBL = ("Helvetica", 12)          # rótulo de mini-card
 MINI_VAL = ("Helvetica-Bold", 14)     # valor de mini-card
 BIG_LBL  = ("Helvetica-Bold", 12)     # rótulo de card grande (EMA, Meta, etc.)
-BIG_VAL  = ("Helvetica-Bold", 26)     # valor de card grande
+BIG_VAL  = ("Helvetica-Bold", 24)     # valor de card grande
 
 MINI_R   = 16
 MINI_PAD = {"t": 12, "r": 12, "b": 10, "l": 12}

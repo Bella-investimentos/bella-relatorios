@@ -299,62 +299,67 @@ def fetch_equity(
             pass
         return _dividend_yield_fallback(sym, price__)
 
-    def _cagr_10y(symbol: str, api_key: Optional[str] = FMP_API_KEY) -> float | None:
+    def _growth_1y(symbol: str, api_key: Optional[str] = FMP_API_KEY) -> float | None:
         """
-        Retorna o retorno ANUALIZADO (fração) usando no máximo 10 anos de histórico.
-        - Se o ativo tiver <10 anos, usa todo o período disponível.
-        - FMP (serietype=line) como primária; Yahoo (10y mensal ajustado) como fallback.
-        Fórmula: (last / first) ** (1/years) - 1
+        Retorna o crescimento acumulado (fração) dos ÚLTIMOS ~12 meses:
+            (preço_final / preço_inicial) - 1
+
+        - Usa FMP (serietype=line) como primária.
+        - Faz fallback para Yahoo Finance (1y, ajustado).
+        - Retorna None se não houver dados suficientes.
         """
-        import pandas as pd
-        sym = symbol.strip().upper()
-        max_years = 10
+        sym = (symbol or "").strip().upper()
+        if not sym:
+            return None
 
-        # ---------- 1) Tenta FMP ----------
+        cutoff = pd.Timestamp.today() - pd.DateOffset(years=1)
+
+        # ---------- 1) Tenta FMP (linha diária) ----------
+        if api_key:
+            try:
+                url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{sym}?serietype=line&apikey={api_key}"
+                r = requests.get(url, timeout=20)
+                r.raise_for_status()
+                raw = (r.json() or {}).get("historical", [])
+                if isinstance(raw, list) and raw:
+                    df = pd.DataFrame(raw)
+                    if {"date", "close"}.issubset(df.columns):
+                        df["date"] = pd.to_datetime(df["date"])
+                        df = df.sort_values("date")
+
+                        # Janela de ~1 ano
+                        df_win = df[df["date"] >= cutoff]
+                        # Se muito ralo (ex.: poucos pregões), amplia levemente a janela
+                        if len(df_win) < 2:
+                            cutoff2 = pd.Timestamp.today() - pd.DateOffset(days=420)
+                            df_win = df[df["date"] >= cutoff2]
+
+                        if len(df_win) >= 2:
+                            first = float(df_win["close"].iloc[0])
+                            last  = float(df_win["close"].iloc[-1])
+                            if first > 0:
+                                return (last / first) - 1.0
+            except Exception as e:
+                print(f"[WARN] FMP 1y growth falhou p/ {sym}: {e}")
+
+        # ---------- 2) Fallback Yahoo (1y ajustado) ----------
         try:
-            url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{sym}?serietype=line&apikey={api_key}"
-            r = requests.get(url, timeout=20)
-            r.raise_for_status()
-            raw = r.json().get("historical", [])
-            if raw and isinstance(raw, list):
-                df = pd.DataFrame(raw)
-                if {"date", "close"}.issubset(df.columns):
-                    df["date"] = pd.to_datetime(df["date"])
-                    df = df.sort_values("date")
-
-                    # recorte: últimos até 10 anos; se tiver menos, usa tudo
-                    cutoff = pd.Timestamp.today() - pd.DateOffset(years=max_years)
-                    df_win = df[df["date"] >= cutoff]
-                    if len(df_win) < 2:
-                        df_win = df  # pouco histórico recente? usa tudo
-
-                    first = float(df_win["close"].iloc[0])
-                    last  = float(df_win["close"].iloc[-1])
-                    years = (df_win["date"].iloc[-1] - df_win["date"].iloc[0]).days / 365.25
-                    if first > 0 and years > 0:
-                        return (last / first) ** (1.0 / years) - 1.0
-        except Exception as e:
-            print(f"[WARN] FMP annualized (<=10y) falhou p/ {sym}: {e}")
-
-        # ---------- 2) Fallback Yahoo (10y mensal ajustado) ----------
-        try:
+            if yf is None:
+                raise RuntimeError("yfinance não disponível")
             t = yf.Ticker(sym)
-            # pega até 10y; se o papel for novo, o Yahoo devolve menos mesmo
-            hist = t.history(period="10y", interval="1mo", auto_adjust=True)
+            # 1 ano, mensal geralmente basta; se quiser mais granular, use '1wk' ou '1d'
+            hist = t.history(period="1y", interval="1mo", auto_adjust=True)
             if not hist.empty and "Close" in hist:
-                # remove NaNs
                 s = hist["Close"].dropna()
                 if len(s) >= 2:
                     first = float(s.iloc[0])
                     last  = float(s.iloc[-1])
-                    years = (s.index[-1] - s.index[0]).days / 365.25
-                    if first > 0 and years > 0:
-                        return (last / first) ** (1.0 / years) - 1.0
+                    if first > 0:
+                        return (last / first) - 1.0
         except Exception as e:
-            print(f"[WARN] YF annualized (<=10y) falhou p/ {sym}: {e}")
+            print(f"[WARN] YF 1y growth falhou p/ {sym}: {e}")
 
         return None
-
     try:
         sym = symbol.strip().upper()
 
@@ -446,8 +451,8 @@ def fetch_equity(
             except Exception:
                 pass
 
-        # CAGR 10y
-        cagr_10y = _cagr_10y(sym)
+        # CAGR 1y
+        _growth_1y = _growth_1y(sym)
 
         # EMAs e gráfico
         ema10, ema20, ema200, _ = calculate_technical_indicators(weekly_bars)
@@ -487,8 +492,8 @@ def fetch_equity(
             "ema20": ema20,
             "ema_200": ema200,
             "ema200": ema200,
-            "average_growth": round(cagr_10y * 100, 1) if cagr_10y is not None else None,
-            "averageGrowth": round(cagr_10y * 100, 1) if cagr_10y is not None else None,
+            "average_growth": round(_growth_1y * 100, 1) if _growth_1y is not None else None,
+            "averageGrowth": round(_growth_1y * 100, 1) if _growth_1y is not None else None,
             "antifragile_entry_price": round(antifragile_entry_price, 4) if antifragile_entry_price else None,
             "antifragileEntryPrice": round(antifragile_entry_price, 4) if antifragile_entry_price else None,
             "vs": vs_pct,      
