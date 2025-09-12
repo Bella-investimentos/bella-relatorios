@@ -63,8 +63,9 @@ def _collect_all_items(enriched: dict) -> list[dict]:
     return out
 
 def build_monthly_rows(enriched: dict) -> tuple[list[dict], str]:
+    from datetime import timedelta  # ← import local para não alterar outros arquivos
     today = date.today()
-    first = _first_friday(today)
+    four_weeks_ago = today - timedelta(weeks=4)  # ← 4 semanas atrás (28 dias)
     # Você pode usar _last_friday(today) se quiser comparar com a última sexta;
     # como você quer o preço ATUAL no card, usaremos o unit_price do item.
     label = f"{today:%B/%Y}".title()
@@ -86,7 +87,7 @@ def build_monthly_rows(enriched: dict) -> tuple[list[dict], str]:
         name = it.get("company_name") or it.get("name") or sym
         group = _group_of_symbol(enriched, sym)
         color = _rgb_for_group(group)
-        p_first = _fetch_close_price(sym, first)
+        p_first = _fetch_close_price(sym, four_weeks_ago)  # ← usa 4 semanas atrás
         p_now   = it.get("unit_price")  # já vem do enrich
         chg = None
         if p_first not in (None, 0) and p_now not in (None, 0):

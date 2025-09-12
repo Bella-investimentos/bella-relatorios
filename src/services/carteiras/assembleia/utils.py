@@ -240,7 +240,7 @@ JUSTIFIED_WHITE = ParagraphStyle(
     fontSize=12,
     leading=16,            # espaçamento entre linhas
     textColor=colors.white,
-    alignment=TA_JUSTIFY,  # <<< justificado
+    alignment=TA_JUSTIFY,  
 )
 
 def draw_justified_paragraph(c, text, x, y, w, h, style=JUSTIFIED_WHITE):
