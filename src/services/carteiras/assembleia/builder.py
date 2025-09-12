@@ -31,6 +31,14 @@ from .pages_monthly import draw_monthly_cards_page
 
 from .constants import img_path, ETF_PAGE_BG_IMG, NEWS_PAGE_BG_IMG
 
+from datetime import datetime
+try:
+    from zoneinfo import ZoneInfo      # Python 3.9+
+    TZ = ZoneInfo("America/Sao_Paulo")
+except Exception:
+    import pytz                        # fallback se zoneinfo/tzdata não estiver disponível
+    TZ = pytz.timezone("America/Sao_Paulo")
+
 
 def generate_assembleia_report(
     bonds: list | None = None,
@@ -114,12 +122,12 @@ def generate_assembleia_report(
 
     def onpage_capa_with_date(c: Canvas, doc_):
         onpage_capa(c, doc_)
-        # data no rodapé
-        data_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        data_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M:%S")  # <- agora com fuso
         c.setFont("Helvetica", 9)
         c.setFillColor(white)
         c.drawRightString(A4[0] - 50, 20, f"{data_str}")
         c.setFillColor(black)
+
         
     # Substitua TODA a seção monthly no builder.py (desde paginate_monthly até o final da seção)
 
@@ -385,15 +393,14 @@ def generate_assembleia_report(
         add_asset_section(Story, "CRP", "CRP_NEWS", crypto)
 
     # ===== PÁGINAS MENSAIS =====
-    print(f"[DEBUG] Iniciando seção monthly com {len(monthly_rows)} rows")
-    print(f"[DEBUG] Total de páginas monthly: {len(_monthly_pages)}")
+   
 
     if _monthly_pages:
         # Página estática (header)
         Story.append(NextPageTemplate("MONTHLY_STATIC"))
         Story.append(PageBreak())
         Story.append(blank)
-        print("[DEBUG] Página estática monthly adicionada")
+        
         
         # Adicionar cada página dinâmica com seu template específico
         for i, page_data in enumerate(_monthly_pages):
@@ -403,9 +410,7 @@ def generate_assembleia_report(
             Story.append(PageBreak())
             Story.append(Paragraph("", styles["Normal"]))  # Conteúdo mínimo para ativar onPage
             
-            print(f"[DEBUG] Página {template_id} adicionada com {len(page_data.get('rows', []))} rows")
-
-    print(f"[DEBUG] Story montado com {len(Story)} elementos")
+            
     
     # ---------- Render ----------
     doc.build(Story)

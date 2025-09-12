@@ -8,7 +8,8 @@ from .constants import (
 )
 from .utils import (
     draw_label_value_centered,
-    fmt_currency_usd, wrap_and_draw, draw_centered_in_box, fmt_pct,
+    fmt_currency_usd, wrap_and_draw, draw_centered_in_box, fmt_pct,draw_justified_paragraph,
+    JUSTIFIED_WHITE,
 )
 
 STK_SPEC = {
@@ -218,7 +219,7 @@ def draw_stock_page(
     n = spec["note"]
     c.setFillColorRGB(1,1,1)
     note_txt = s.get("note") or f"{s.get('company_name','')} ({s.get('symbol','')}) — visão geral/nota."
-    wrap_and_draw(c, note_txt, n["x"], n["y"] + n["h"], n["w"], n["lh"], n["font"], n["max_lines"])
+    draw_justified_paragraph(c, note_txt, n["x"], n["y"], n["w"], n["h"], JUSTIFIED_WHITE)
 
 
 

@@ -3,10 +3,10 @@ import os
 from matplotlib.pyplot import box
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.lib.pagesizes import A4
-from .utils import draw_label_value_centered
+from .utils import JUSTIFIED_WHITE, draw_label_value_centered
 from .constants import MINI_R, MINI_LBL, MINI_VAL, BIG_LBL, BIG_VAL, MINI_PAD
 from .constants import img_path, ETF_PAGE_BG_IMG
-from .utils import fmt_currency_usd, fmt_pct, wrap_and_draw, draw_centered_in_box
+from .utils import fmt_currency_usd, fmt_pct, wrap_and_draw, draw_centered_in_box, draw_justified_paragraph, JUSTIFIED_WHITE
 
 # -----------------------------
 # Normalização do payload
@@ -166,6 +166,6 @@ def draw_crypto_page(c: Canvas, payload: dict):
     n = spec["note"]
     c.setFillColorRGB(1,1,1)
     note_txt = d.get("note") or f'{d.get("company_name","")} ({d.get("symbol","")}) — visão geral.'
-    wrap_and_draw(c, note_txt, n["x"], n["y"] + n["h"], n["w"], n["lh"], n["font"], n["max_lines"])
+    draw_justified_paragraph(c, note_txt, n["x"], n["y"], n["w"], n["h"], JUSTIFIED_WHITE)
 
 

@@ -6,7 +6,7 @@ from .constants import MINI_R, MINI_LBL, MINI_VAL, MINI_PAD
 from .utils import draw_label_value_centered
 from .constants import BIG_LBL, BIG_VAL
 from .constants import img_path, ETF_PAGE_BG_IMG
-from .utils import fmt_currency_usd, wrap_and_draw, draw_centered_in_box
+from .utils import fmt_currency_usd, wrap_and_draw, draw_centered_in_box, draw_justified_paragraph, JUSTIFIED_WHITE
 
 
 
@@ -209,8 +209,7 @@ def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
     n = spec["note"]
     c.setFillColorRGB(1, 1, 1)
     note = e.get("note") or f"{e.get('company_name','')} ({e.get('symbol','')}) — resumo/nota opcional."
-    wrap_and_draw(c, note, n["x"], n["y"] + n["h"], n["w"], n["lh"], n["font"], n["max_lines"])
-
+    draw_justified_paragraph(c, note, n["x"], n["y"], n["w"], n["h"], JUSTIFIED_WHITE)
 
 def draw_hedge_page(c: Canvas, asset: dict):
     return draw_etf_page(c, asset, kind_label="Hedge")
