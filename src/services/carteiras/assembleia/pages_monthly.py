@@ -104,14 +104,14 @@ def draw_monthly_cards_page(c: Canvas, page: Dict[str, Any]):
             # Cards vazios com borda azul - usando função personalizada
             blue = (0.20, 0.55, 0.95)
             _card_with_color(c, x0, y, cw, ch, "Ativo",   "", font_size_label, font_size_value, blue)
-            _card_with_color(c, x1, y, cw, ch, "1ª Sexta", "", font_size_label, font_size_value, blue)
-            _card_with_color(c, x2, y, cw, ch, "Atual",    "", font_size_label, font_size_value, blue)
+            _card_with_color(c, x1, y, cw, ch, "1ª semana", "", font_size_label, font_size_value, blue)
+            _card_with_color(c, x2, y, cw, ch, "Valor Atual",    "", font_size_label, font_size_value, blue)
             _card_with_color(c, x3, y, cw, ch, "Var.%",    "", font_size_label, font_size_value, blue)
         else:
             # Cards normais com cores baseadas no grupo
             _card_with_color(c, x0, y, cw, ch, "Ativo",    sym,    font_size_label, font_size_value, color)
-            _card_with_color(c, x1, y, cw, ch, "1ª Sexta", p0_txt, font_size_label, font_size_value, color)
-            _card_with_color(c, x2, y, cw, ch, "Atual",    p1_txt, font_size_label, font_size_value, color)
+            _card_with_color(c, x1, y, cw, ch, "1ª Semana", p0_txt, font_size_label, font_size_value, color)
+            _card_with_color(c, x2, y, cw, ch, "Valor Atual",    p1_txt, font_size_label, font_size_value, color)
             _card_with_color(c, x3, y, cw, ch, "Var.%",    chg_txt, font_size_label, font_size_value, color)
 
         y -= (row_h + gap_y)
