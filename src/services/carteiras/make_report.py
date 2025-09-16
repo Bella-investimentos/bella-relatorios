@@ -103,7 +103,7 @@ def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[f
     if 'ema_200' in df.columns and ema_200_value is not None:
         plt.plot(df.index, df['ema_200'], label=f'EMA200: ${ema_200_value:.2f}', linestyle=':', linewidth=2, color='#F18F01')
 
-        plt.title(f'Análise Técnica - {symbol}', fontsize=14, fontweight='bold')
+    plt.title(f'Análise Técnica - {symbol}', fontsize=14, fontweight='bold')
     ax = plt.gca()
     ax.set_xlabel('Período', fontsize=12)
     ax.set_ylabel('Preço (USD)', fontsize=12)

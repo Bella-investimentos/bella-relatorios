@@ -54,6 +54,8 @@ def generate_assembleia_report(
     crypto: list | None = None,
     monthly_rows: list | None = None,
     monthly_label: str | None = None,
+    custom_range_pages: list | None = None,   # <- NOVO
+    fetch_price_fn=None,   
 ) -> BytesIO:
 
     # ---------- Normalização de entradas ----------
@@ -70,6 +72,7 @@ def generate_assembleia_report(
     crypto         = crypto or []
     monthly_rows   = monthly_rows or []
     monthly_label  = (monthly_label or "").strip()
+    custom_range_pages = custom_range_pages or []
 
     # ---------- Doc/Frame básicos ----------
     buffer = BytesIO()
@@ -188,6 +191,34 @@ def generate_assembleia_report(
         monthly_templates.append(template)
         print(f"[DEBUG] Criado template {template_id} para página {i}")
         
+    def custom_range_onpage_factory(items: list, fetch_price_fn):
+        """Factory que cria função onPage para desenhar custom ranges"""
+        def _onpage(c: Canvas, _doc):
+            if items:  # se há itens, desenha todos numa página só
+                from .pages_monthly import draw_custom_range_page_many
+                draw_custom_range_page_many(
+                    c, 
+                    items, 
+                    fetch_price_fn=fetch_price_fn,
+                    title="ATIVOS INDICADOS QUE SAIRAM DO RELATÓRIO"
+                )
+            else:
+                # só fundo
+                try:
+                    c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
+                except Exception:
+                    pass
+        return _onpage
+    
+    custom_range_templates = []
+    if custom_range_pages:
+        custom_range_t = PageTemplate(
+            id="CUSTOM_RANGE", 
+            frames=[frame], 
+            onPage=custom_range_onpage_factory(custom_range_pages, fetch_price_fn)
+        )
+        custom_range_templates.append(custom_range_t)
+        
     # ---------- Templates FIXOS (capas/perfis/headers) ----------
     cover_t      = PageTemplate(id="Capa",                frames=[frame], onPage=onpage_capa_with_date)
     news_t       = PageTemplate(id="Noticias",            frames=[frame], onPage=onpage_noticias)
@@ -258,6 +289,7 @@ def generate_assembleia_report(
         hedge_hdr_t, hedge_t, hedge_news_t,
         monthly_static_t,
         *monthly_templates,
+        *custom_range_templates,
     ]
    
     doc.addPageTemplates(templates)
@@ -295,9 +327,9 @@ def generate_assembleia_report(
     Story = []
 
     # Capa
-    Story.append(NextPageTemplate("Capa"))
-    Story.append(PageBreak())
-    Story.append(blank)
+    # Story.append(NextPageTemplate("Capa"))
+    # Story.append(PageBreak())
+    # Story.append(blank)
 
     # Notícias
     Story.append(NextPageTemplate("Noticias"))
@@ -410,7 +442,13 @@ def generate_assembleia_report(
             Story.append(PageBreak())
             Story.append(Paragraph("", styles["Normal"]))  # Conteúdo mínimo para ativar onPage
             
-            
+     
+    # --- PÁGINAS AVULSAS: intervalos customizados (cards brancos) ---
+    if custom_range_pages:
+        Story.append(NextPageTemplate("CUSTOM_RANGE"))
+        Story.append(PageBreak())
+        Story.append(blank)
+     
     
     # ---------- Render ----------
     doc.build(Story)

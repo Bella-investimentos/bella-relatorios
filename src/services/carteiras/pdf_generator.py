@@ -28,6 +28,7 @@ def is_safe_path(base_path: str, file_path: str) -> bool:
 def generate_pdf_buffer(
     investor: str,
     bonds: list = None,
+    reits: list = None,
     stocks: list = None,
     etfs: list = None,
     etfs_op: list = None,
@@ -38,6 +39,7 @@ def generate_pdf_buffer(
 ):
     
     bonds = bonds or []
+    reits = reits or []
     stocks = stocks or []
     etfs = etfs or []
     etfs_op = etfs_op or []
@@ -204,7 +206,7 @@ def generate_pdf_buffer(
             if description and isinstance(description, list):
                 desc_text = '<br/>'.join(description)
                 data_rows.append(['Descrição:', Paragraph(desc_text, styles['AssetDetail'])])
-        elif asset_type == 'stocks' or asset_type == 'opp_stocks':
+        elif asset_type == 'stocks' or asset_type == 'opp_stocks' or asset_type == 'reits':
             growth_pct = get_growth_pct(item)
             data_rows = [
                 ['Setor:', item.get('sector', 'Indefinido')],
@@ -254,7 +256,7 @@ def generate_pdf_buffer(
             card_elements.append(table)
             card_elements.append(Spacer(1, 10))  
         
-        if asset_type in ['stocks', 'opp_stocks']:
+        if asset_type in ['stocks', 'opp_stocks', 'reits']:
             sector = item.get('sector', 'Indefinido')
             ema_10 = format_value(item.get('ema_10'))
             ema_20 = format_value(item.get('ema_20'))
@@ -301,7 +303,7 @@ def generate_pdf_buffer(
         calculate_total(bonds) + calculate_total(stocks) + calculate_total(etfs) +
         calculate_total(etfs_op) + calculate_total(etfs_af) +
         calculate_total(opp_stocks) + calculate_total(cryptos) +
-        calculate_total(real_estates)
+        calculate_total(real_estates) + calculate_total(reits)
     )
 
     elements = []
@@ -337,6 +339,10 @@ def generate_pdf_buffer(
     
     if bonds:
         add_asset_section(elements, '💰 Títulos de Renda Fixa (Bonds)', calculate_total(bonds), bonds, 'bonds')
+        elements.append(PageBreak())
+
+    if reits:
+        add_asset_section(elements, '🏢 REITs', calculate_total(reits), reits, 'reits')
         elements.append(PageBreak())
 
     if stocks:

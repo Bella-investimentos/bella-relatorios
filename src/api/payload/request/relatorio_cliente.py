@@ -38,3 +38,13 @@ class ClienteRelatorioPayload(BaseModel):
     cryptos: List[CryptoIn] = Field(default_factory=list)
     real_estates: List[RealEstateIn] = Field(default_factory=list)
     user_id: Optional[str] = None
+    
+class CustomRangeIn(BaseModel):
+    symbol: str
+    start_date: str   # aceita "DD/MM/AAAA" ou "YYYY-MM-DD" (o draw_custom_range_page faz o parse)
+    end_date: str
+    title: Optional[str] = None
+
+class ClienteRelatorioPayload(BaseModel):
+    # ...campos que você já tem...
+    custom_ranges: List[CustomRangeIn] = Field(default_factory=list)
