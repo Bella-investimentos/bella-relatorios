@@ -6,13 +6,13 @@ from .constants import MINI_R, MINI_LBL, MINI_VAL, MINI_PAD
 from .utils import draw_label_value_centered
 from .constants import BIG_LBL, BIG_VAL
 from .constants import img_path, ETF_PAGE_BG_IMG
-from .utils import fmt_currency_usd, wrap_and_draw, draw_centered_in_box, draw_justified_paragraph, JUSTIFIED_WHITE
+from .utils import fmt_currency_usd, wrap_and_draw, draw_centered_in_box, draw_justified_paragraph,draw_asset_logo_rounded, JUSTIFIED_WHITE
 
 
 
 ETF_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
-    "logo":   {"x": 60,  "y": 700, "w": 60, "h": 60},
+    "logo":   {"x": 60,  "y": 665, "w": 75,  "h": 75},
     "title":  {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 26), "max_lines": 2},
     "subtitle": {"x": 140, "y": 665, "font": ("Helvetica-Bold", 16)},
 
@@ -91,15 +91,22 @@ def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
 
     e = normalize_etf(etf)
 
-    # ----- LOGO (opcional)
-    if e.get("logo_path"):
-        try:
-            c.drawImage(
-                e["logo_path"], spec["logo"]["x"], spec["logo"]["y"],
-                width=spec["logo"]["w"], height=spec["logo"]["h"], mask='auto'
-            )
-        except Exception as exc:
-            print(f"[assembleia][ETF] logo não carregada: {exc}")
+    # logo (opcional)
+    try:
+        drew = draw_asset_logo_rounded(
+            c, e,
+            spec["logo"]["x"], spec["logo"]["y"],
+            spec["logo"]["w"], spec["logo"]["h"],
+            radius=8,         # ajuste o raio que preferir
+            draw_stroke=True,  # desenha uma bordinha
+            stroke_width=1.0
+        )
+        #opcional: se quiser um placeholder quando não houver logo:
+        if not drew:
+            c.setFillColorRGB(0.9, 0.9, 0.9)
+            c.rect(spec["logo"]["x"], spec["logo"]["y"], spec["logo"]["w"], spec["logo"]["h"], stroke=0, fill=1)
+    except Exception as e:
+        print(f"[bond] logo: {e}")
 
     # ----- TÍTULO / SUBTÍTULO
     c.setFillColorRGB(1, 1, 1)
