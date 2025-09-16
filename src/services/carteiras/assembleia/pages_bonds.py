@@ -1,12 +1,12 @@
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.lib.pagesizes import A4
 from .constants import img_path, BOND_PAGE_BG_IMG
-from .utils import draw_justified_paragraph, fmt_currency_usd, fmt_coupon, fmt_date_ddmmyyyy, wrap_and_draw, draw_centered_in_box
+from .utils import draw_justified_paragraph, fmt_currency_usd, fmt_coupon, fmt_date_ddmmyyyy, wrap_and_draw, draw_centered_in_box, draw_asset_logo_rounded
 
 BOND_SPEC = {
     "bg": BOND_PAGE_BG_IMG,
-    "logo":   {"x": 68,  "y": 680, "w": 60,  "h": 60},
-    "title":  {"x": 140, "y": 700, "w": 400, "lh": 24, "font": ("Helvetica-Bold", 26), "max_lines": 2},
+    "logo":   {"x": 42,  "y": 642, "w": 75,  "h": 75},
+    "title":  {"x": 140, "y": 700, "w": 400, "lh": 26, "font": ("Helvetica-Bold", 24), "max_lines": 2},
     "type":   {"x": 150, "y": 630, "font": ("Helvetica", 14)},
     "sector": {"x": 320, "y": 632, "font": ("Helvetica", 14)},
     "card_venc": {"x":  50, "y": 520, "w": 180, "h": 70, "font": ("Helvetica-Bold", 20)},
@@ -43,12 +43,21 @@ def draw_bond_page(c: Canvas, bond: dict):
     b = normalize_bond(bond)
 
     # logo (opcional)
-    if b["logo_path"]:
-        try:
-            c.drawImage(b["logo_path"], spec["logo"]["x"], spec["logo"]["y"],
-                        width=spec["logo"]["w"], height=spec["logo"]["h"], mask='auto')
-        except Exception as e:
-            print(f"[bond] logo: {e}")
+    try:
+        drew = draw_asset_logo_rounded(
+            c, b,
+            spec["logo"]["x"], spec["logo"]["y"],
+            spec["logo"]["w"], spec["logo"]["h"],
+            radius=8,         # ajuste o raio que preferir
+            draw_stroke=True,  # desenha uma bordinha
+            stroke_width=1.0
+        )
+        #opcional: se quiser um placeholder quando não houver logo:
+        if not drew:
+            c.setFillColorRGB(0.9, 0.9, 0.9)
+            c.rect(spec["logo"]["x"], spec["logo"]["y"], spec["logo"]["w"], spec["logo"]["h"], stroke=0, fill=1)
+    except Exception as e:
+        print(f"[bond] logo: {e}")
 
     # título
     c.setFillColorRGB(1, 1, 1)

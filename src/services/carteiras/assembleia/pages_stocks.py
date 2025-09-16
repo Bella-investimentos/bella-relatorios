@@ -100,7 +100,8 @@ def draw_stock_page(
     asset: dict,
     *,
     normalizer=normalize_stock,
-    kind_label: str | None = None
+    kind_label: str | None = None,
+    show_score: bool = True,
 ):
     # copia + alinhamento
     spec = {k: (v.copy() if isinstance(v, dict) else v) for k, v in STK_SPEC.items()}
@@ -110,7 +111,27 @@ def draw_stock_page(
     c.drawImage(img_path(spec["bg"]), 0, 0, width=w, height=h)
 
     s = normalizer(asset)
+    
+    # >>> RECENTRAR linha 1 para REITs (sem Score)
+    if not show_score:
+        g    = spec["chart"]
+        gap  = spec.get("gap_x", 12)
+        y1   = spec.get("row1_y", 580)
+        hS   = spec.get("h_small", 35)
 
+        # duas colunas (Valor, VP) com 1 gap entre elas
+        colw2   = spec["card_price"]["w"]
+        total_w = 2*colw2 + gap
+        x_left  = g["x"] + (g["w"] - total_w) / 2.0
+
+        # reposiciona os boxes
+        spec["card_price"].update(x=int(x_left),                 y=y1, w=int(colw2), h=hS)
+        spec["card_vp"].update(   x=int(x_left + colw2 + gap),   y=y1, w=int(colw2), h=hS)
+
+        # “anula” o card_score (não será desenhado, mas evita interferência)
+        spec["card_score"].update(x=0, y=0, w=0, h=0)
+
+ 
     # logo
     if s.get("logo_path"):
         try:
@@ -191,7 +212,8 @@ def draw_stock_page(
     # 1ª linha
     label_value_card(spec["card_price"], "Valor",  price_str)
     label_value_card(spec["card_vp"],    "VP",     vp_str)
-    label_value_card(spec["card_score"], "Score",   score_str)
+    if show_score:  # <- só desenha se permitido
+        label_value_card(spec["card_score"], "Score", score_str)
 
     # 2ª linha
     label_value_card(spec["vr_box"],   "VR",         vr_str)
@@ -230,7 +252,9 @@ def normalize_reit(d: dict) -> dict:
     return m
 
 def draw_reit_page(c: Canvas, reit: dict):
-    return draw_stock_page(c, reit, normalizer=normalize_reit, kind_label="REIT")
+    return draw_stock_page(c, reit, normalizer=normalize_reit, kind_label="REIT", show_score=False)
+
+
 
 def normalize_smallcap(d: dict) -> dict:
     m = normalize_stock(d)

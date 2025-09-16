@@ -132,6 +132,8 @@ def _rgb_for_group(group: str) -> tuple[float, float, float]:
     return (1.0, 1.0, 0.0)
 
 
+
+
 def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbol: Optional[str] = None) -> BytesIO:
     
     enriched = enrich_payload_with_make_report(payload)
@@ -151,7 +153,11 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
     crypto         = enriched.get("crypto", []) or []
     hedge          = enriched.get("hedge", []) or []
 
-     
+    custom_ranges = []
+    if hasattr(payload, 'custom_ranges') and payload.custom_ranges:
+        custom_ranges = [cr.model_dump() if hasattr(cr, 'model_dump') else cr for cr in payload.custom_ranges]
+    elif isinstance(payload, dict) and payload.get('custom_ranges'):
+        custom_ranges = payload['custom_ranges']
 
     logger.info(
         "[ASSEMBLEIA] pós-prep: bonds=%d, etfs_cons=%d, etfs_mod=%d, etfs_agr=%d, "
@@ -169,7 +175,8 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         etfs_cons=etfs_cons, etfs_mod=etfs_mod, etfs_agr=etfs_agr,
         stocks_mod=stocks_mod, stocks_arj=stocks_arj, stocks_opp=stocks_opp,
         reits_cons=reits_cons, smallcaps_arj=smallcaps_arj, crypto=crypto, hedge=hedge,
-        monthly_rows=monthly_rows, monthly_label=monthly_label,
+        monthly_rows=monthly_rows, monthly_label=monthly_label, custom_range_pages=custom_ranges,
+        fetch_price_fn=_fetch_close_price,
     )
 
     # 4) Upload (opcional) e retorno

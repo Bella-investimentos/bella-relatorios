@@ -7,9 +7,12 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY
 from reportlab.lib import colors
 from io import BytesIO
+from pathlib import Path
+from typing import Iterable, Optional
 import math 
 import re
 import os, requests
+from .constants import IMAGES_DIR  
 
 def fmt_currency_usd(v) -> str:
     """$1,234.56 | lida com None/NaN."""
@@ -288,3 +291,111 @@ def draw_label_value_centered(
     val_h = value_font[1]
     vy = y + (h - val_h) / 2 + val_h * 0.85  # baseline ~centro visual
     c.drawCentredString(x + w / 2, vy, txt)
+
+#logo
+_slug_keep = re.compile(r"[^\w\s\-\.]", flags=re.UNICODE)
+
+def _slugify_filename(s: str | None) -> str:
+    s = (s or "").strip()
+    if not s:
+        return ""
+    s = _slug_keep.sub("", s)
+    s = re.sub(r"\s+", "_", s)
+    return s
+
+def _lookup_in_images_dir(stem: str) -> Optional[str]:
+    """Procura por stem.(png|jpg|jpeg) dentro de IMAGES_DIR (case-insensitive)."""
+    stem_low = stem.lower()
+    for ext in (".png", ".jpg", ".jpeg"):
+        # tentativa direta
+        cand = IMAGES_DIR / f"{stem}{ext}"
+        if cand.exists():
+            return str(cand)
+        # varredura leve (case-insensitive)
+        for p in IMAGES_DIR.glob(f"*{ext}"):
+            if p.name.lower() == f"{stem_low}{ext}":
+                return str(p)
+    return None
+
+def resolve_logo_from_asset(
+    asset: dict,
+    explicit_path_keys: Iterable[str] = ("logo_path", "logo", "logo_file"),
+    prefer_keys: Iterable[str] = ("code", "symbol", "ticker", "isin", "cusip", "name"),
+) -> Optional[str]:
+    """
+    1) Se vier caminho explícito em explicit_path_keys, resolve relativo a IMAGES_DIR (se for relativo).
+    2) Senão tenta <ident>.png|jpg|jpeg em IMAGES_DIR, na ordem de prefer_keys.
+    """
+    # 1) caminho explícito
+    for k in explicit_path_keys:
+        v = asset.get(k)
+        if isinstance(v, str) and v.strip():
+            p = Path(v)
+            if not p.is_absolute():
+                p = IMAGES_DIR / v
+            if p.exists():
+                return str(p)
+
+    # 2) por identificadores
+    for k in prefer_keys:
+        v = asset.get(k)
+        if not isinstance(v, str):
+            continue
+        stem = _slugify_filename(v)
+        if not stem:
+            continue
+        found = _lookup_in_images_dir(stem)
+        if found:
+            return found
+
+    return None
+
+def draw_asset_logo(c, asset: dict, x: float, y: float, w: float, h: float) -> bool:
+    """
+    Resolve o logo e desenha cobrindo (x,y,w,h) usando draw_image_cover.
+    Retorna True se conseguiu desenhar.
+    """
+    src = resolve_logo_from_asset(asset)
+    if not src:
+        return False
+    draw_image_cover(c, src, x, y, w, h)  # cobre o quadrado existente
+    return True
+
+def draw_image_cover_rounded(c, src: str, x: float, y: float, w: float, h: float,
+                             radius: float = 12,
+                             draw_stroke: bool = True,
+                             stroke_width: float = 1.0):
+    """
+    Desenha a imagem 'src' cobrindo (x,y,w,h) com cantos arredondados (clip).
+    Opcionalmente desenha uma borda ao redor.
+    """
+    c.saveState()
+    p = c.beginPath()
+    # desenha o path do retângulo arredondado
+    p.roundRect(x, y, w, h, radius)
+    # aplica clip (tudo que for desenhado depois fica dentro do shape)
+    c.clipPath(p, stroke=0, fill=0)
+
+    # usa seu cover existente para preencher toda a área
+    draw_image_cover(c, src, x, y, w, h)
+
+    c.restoreState()
+
+    # borda (opcional) – desenha por cima do clip, para ficar nítida
+    if draw_stroke and stroke_width > 0:
+        c.saveState()
+        c.setLineWidth(stroke_width)
+        # cor da borda (opcional: ajuste aqui se quiser outra)
+        c.setStrokeColorRGB(1, 1, 1)  # branco, por ex.
+        c.roundRect(x, y, w, h, radius, stroke=1, fill=0)
+        c.restoreState()
+
+def draw_asset_logo_rounded(c, asset: dict, x: float, y: float, w: float, h: float,
+                            radius: float = 8,
+                            draw_stroke: bool = True,
+                            stroke_width: float = 1.0) -> bool:
+    src = resolve_logo_from_asset(asset)
+    if not src:
+        return False
+    draw_image_cover_rounded(c, src, x, y, w, h, radius, draw_stroke, stroke_width)
+    return True
