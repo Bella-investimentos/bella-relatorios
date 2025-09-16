@@ -1,3 +1,4 @@
+from io import BytesIO
 import os
 import shutil
 import subprocess
@@ -15,6 +16,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import tempfile
 from src.services.carteiras.pdf_generator import generate_pdf_buffer
+
 
 load_dotenv()
 FMP_API_KEY = os.getenv("FMP_API_KEY")
@@ -785,7 +787,7 @@ def link_callback(uri, rel, base_url):
 # =========================
 # Builder a partir do payload do front
 # =========================
-def build_report_from_payload(payload: Dict[str, Any]) -> str:
+def build_report_from_payload(payload: Dict[str, Any]) -> BytesIO:
     """
     Consome o payload canônico do front e gera HTML+PDF.
     Retorna caminho do PDF gerado.
@@ -847,7 +849,7 @@ def build_report_from_payload(payload: Dict[str, Any]) -> str:
             )
         return out
 
-
+    reits = _mk_equities(payload.get("reits"), is_etf=False)
     stocks = _mk_equities(payload.get("stocks"), is_etf=False)
     opp_stocks = _mk_equities(payload.get("opp_stocks"), is_etf=False)
     etfs = _mk_equities(payload.get("etfs"), is_etf=True)
@@ -883,6 +885,7 @@ def build_report_from_payload(payload: Dict[str, Any]) -> str:
     pdf_buffer = generate_pdf_buffer(
     investor=investor,
     bonds=bonds,
+    reits=reits,
     stocks=stocks,
     etfs=etfs,
     etfs_op=etfs_op,
@@ -890,5 +893,5 @@ def build_report_from_payload(payload: Dict[str, Any]) -> str:
     opp_stocks=opp_stocks,
     cryptos=cryptos,
     real_estates=real_estates
-)
+    )
     return pdf_buffer
