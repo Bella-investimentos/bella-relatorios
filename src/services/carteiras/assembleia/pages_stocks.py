@@ -8,14 +8,14 @@ from .constants import (
 )
 from .utils import (
     draw_label_value_centered,
-    fmt_currency_usd, wrap_and_draw, draw_centered_in_box, fmt_pct,draw_justified_paragraph,
+    fmt_currency_usd, wrap_and_draw, draw_centered_in_box, fmt_pct,draw_justified_paragraph,draw_asset_logo_rounded,
     JUSTIFIED_WHITE,
 )
 
 STK_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
 
-    "logo":     {"x": 60,  "y": 700, "w": 60, "h": 60},
+    "logo":     {"x": 60,  "y": 665, "w": 75,  "h": 75},
     "title":    {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 26), "max_lines": 2},
     "subtitle": {"x": 140, "y": 665, "font": ("Helvetica-Bold", 16)},
 
@@ -132,13 +132,22 @@ def draw_stock_page(
         spec["card_score"].update(x=0, y=0, w=0, h=0)
 
  
-    # logo
-    if s.get("logo_path"):
-        try:
-            c.drawImage(s["logo_path"], spec["logo"]["x"], spec["logo"]["y"],
-                        width=spec["logo"]["w"], height=spec["logo"]["h"], mask='auto')
-        except Exception as exc:
-            print(f"[assembleia][STOCK] logo não carregada: {exc}")
+    # logo (opcional)
+    try:
+        drew = draw_asset_logo_rounded(
+            c, s,
+            spec["logo"]["x"], spec["logo"]["y"],
+            spec["logo"]["w"], spec["logo"]["h"],
+            radius=8,         # ajuste o raio que preferir
+            draw_stroke=True,  # desenha uma bordinha
+            stroke_width=1.0
+        )
+        #opcional: se quiser um placeholder quando não houver logo:
+        if not drew:
+            c.setFillColorRGB(0.9, 0.9, 0.9)
+            c.rect(spec["logo"]["x"], spec["logo"]["y"], spec["logo"]["w"], spec["logo"]["h"], stroke=0, fill=1)
+    except Exception as e:
+        print(f"[bond] logo: {e}")
 
     # título e subtítulo
     c.setFillColorRGB(1,1,1)

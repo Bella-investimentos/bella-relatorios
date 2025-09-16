@@ -94,6 +94,7 @@ def generate_report_assembleia():
 # === Relatório genérico ===
 @app.post("/generate-report")
 def generate_report_generic(payload: ClienteRelatorioPayload):
+    print("Payload recebido:", payload.dict())
     buf = build_report_from_payload(payload.dict())
     return _stream_pdf(buf, "Relatorio_Carteira.pdf", disposition="attachment")
 

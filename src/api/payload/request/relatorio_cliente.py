@@ -15,6 +15,9 @@ class EquityIn(BaseModel):
     symbol: str
     quantity: float
     target_price: Optional[float] = None
+    score: Optional[float] = None     # ← Adicione
+    vr: Optional[float] = None        # ← Adicione 
+    vs: Optional[float] = None     
 
 class CryptoIn(BaseModel):
     symbol: str
@@ -26,9 +29,16 @@ class RealEstateIn(BaseModel):
     name: str
     invested_value: float
     appreciation: float
+    
+class CustomRangeIn(BaseModel):
+    symbol: str
+    start_date: str   # aceita "DD/MM/AAAA" ou "YYYY-MM-DD" (o draw_custom_range_page faz o parse)
+    end_date: str
+    title: Optional[str] = None
 
 class ClienteRelatorioPayload(BaseModel):
     investor: str
+    reits: List[EquityIn] = Field(default_factory=list)
     bonds: List[BondIn] = Field(default_factory=list)
     stocks: List[EquityIn] = Field(default_factory=list)
     opp_stocks: List[EquityIn] = Field(default_factory=list)
@@ -38,13 +48,10 @@ class ClienteRelatorioPayload(BaseModel):
     cryptos: List[CryptoIn] = Field(default_factory=list)
     real_estates: List[RealEstateIn] = Field(default_factory=list)
     user_id: Optional[str] = None
-    
-class CustomRangeIn(BaseModel):
-    symbol: str
-    start_date: str   # aceita "DD/MM/AAAA" ou "YYYY-MM-DD" (o draw_custom_range_page faz o parse)
-    end_date: str
-    title: Optional[str] = None
-
-class ClienteRelatorioPayload(BaseModel):
-    # ...campos que você já tem...
     custom_ranges: List[CustomRangeIn] = Field(default_factory=list)
+    
+
+
+# class ClienteRelatorioPayload(BaseModel):
+#     # ...campos que você já tem...
+#     custom_ranges: List[CustomRangeIn] = Field(default_factory=list)
