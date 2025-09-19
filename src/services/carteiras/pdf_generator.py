@@ -206,7 +206,22 @@ def generate_pdf_buffer(
             if description and isinstance(description, list):
                 desc_text = '<br/>'.join(description)
                 data_rows.append(['Descrição:', Paragraph(desc_text, styles['AssetDetail'])])
-        elif asset_type == 'stocks' or asset_type == 'opp_stocks' or asset_type == 'reits':
+        elif asset_type == 'reits':
+            growth_pct = get_growth_pct(item)
+            data_rows = [
+                ['Setor:', item.get('sector', 'Real Estate')],
+                ['Valor Atual:', format_value(item.get('unit_price'))],
+                ['Entrada (EMA 10):', format_value(item.get('ema_10'))],
+                ['Entrada (EMA 20):', format_value(item.get('ema_20'))],
+                ['Score:', str(item.get('score', '–'))],
+                ['Meta (Saída):', format_value(item.get('target_price'))],
+                ['Dividend Yield:', format_value(item.get('dividend_yield', 0), is_percentage=True)],
+                ['Quantidade:', str(item.get('quantity', '–'))],
+                ['Investimento:', format_value(item.get('investment'))],
+                ['Potencial Valorização:', format_value(growth_pct, is_percentage=True) if growth_pct else '–'],
+            ]
+
+        elif asset_type == 'stocks' or asset_type == 'opp_stocks':
             growth_pct = get_growth_pct(item)
             data_rows = [
                 ['Setor:', item.get('sector', 'Indefinido')],
@@ -256,7 +271,7 @@ def generate_pdf_buffer(
             card_elements.append(table)
             card_elements.append(Spacer(1, 10))  
         
-        if asset_type in ['stocks', 'opp_stocks', 'reits']:
+        if asset_type in ['stocks', 'opp_stocks']:
             sector = item.get('sector', 'Indefinido')
             ema_10 = format_value(item.get('ema_10'))
             ema_20 = format_value(item.get('ema_20'))
@@ -264,12 +279,27 @@ def generate_pdf_buffer(
             dividend_yield_text = format_value(item.get('dividend_yield', 0), is_percentage=True)
             
             analysis = f"""A ação <b>{symbol}</b> do setor <b>{sector}</b> tem entrada recomendada 
-                          para um perfil moderado em <b>{ema_20}</b> e entrada recomendada para 
-                          um perfil agressivo em <b>{ema_10}.</b> Com expectativa de atingir <b>{target_price}</b>. 
-                          Dividend yield anual de <b>{dividend_yield_text}</b>."""
+                        para um perfil moderado em <b>{ema_20}</b> e entrada recomendada para 
+                        um perfil agressivo em <b>{ema_10}.</b> Com expectativa de atingir <b>{target_price}</b>. 
+                        Dividend yield anual de <b>{dividend_yield_text}</b>."""
             
             card_elements.append(Paragraph(analysis, styles['AssetDetail']))
-            card_elements.append(Spacer(1, 20))  # 20px após a análise
+            card_elements.append(Spacer(1, 20))
+
+        elif asset_type == 'reits':
+            sector = item.get('sector', 'Real Estate')
+            ema_10 = format_value(item.get('ema_10'))
+            ema_20 = format_value(item.get('ema_20'))
+            target_price = format_value(item.get('target_price'))
+            dividend_yield_text = format_value(item.get('dividend_yield', 0), is_percentage=True)
+            
+            analysis = f"""O REIT <b>{symbol}</b> do setor <b>{sector}</b> tem entrada recomendada 
+                        para um perfil moderado em <b>{ema_20}</b> e entrada recomendada para 
+                        um perfil agressivo em <b>{ema_10}.</b> Com expectativa de atingir <b>{target_price}</b>. 
+                        Distribuição anual de dividendos de <b>{dividend_yield_text}</b>."""
+            
+            card_elements.append(Paragraph(analysis, styles['AssetDetail']))
+            card_elements.append(Spacer(1, 20))
 
         chart_path = item.get('chart')
         if chart_path and is_safe_path('.', chart_path) and os.path.exists(chart_path):
