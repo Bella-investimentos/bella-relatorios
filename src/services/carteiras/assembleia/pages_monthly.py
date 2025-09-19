@@ -277,8 +277,8 @@ def draw_custom_range_page_many(
 
         # linha de 4 cards brancos
         _card_white(c, x0, y, cw, ch, "Ativo", symbol)
-        _card_white(c, x1, y, cw, ch, f"1ª semana {d0.strftime('%d/%m/%Y')}", p0_txt)
-        _card_white(c, x2, y, cw, ch, f"Valor de saída {d1.strftime('%d/%m/%Y')}", p1_txt)
+        _card_white(c, x1, y, cw, ch, f"1ª semana {d0.strftime('%d/%m')}", p0_txt)
+        _card_white(c, x2, y, cw, ch, f"Saída em {d1.strftime('%d/%m')}", p1_txt)
         _card_white(c, x3, y, cw, ch, "Var.%", chg_txt)
 
         y -= per_row
