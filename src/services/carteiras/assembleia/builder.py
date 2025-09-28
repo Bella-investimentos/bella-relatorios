@@ -18,7 +18,7 @@ from .pages_static import (
     onpage_etfs_cons, onpage_etfs_mod, onpage_etfs_arr,
     onpage_acao_mod, onpage_acao_arr,
     onpage_reits, onpage_smallcap_arj,
-    onpage_crypto, onpage_hedge, onpage_monthly 
+    onpage_crypto, onpage_hedge, onpage_monthly, onpage_text_asset 
 )
 
 # Páginas “dinâmicas” (desenham conteúdo a partir de dados)
@@ -28,7 +28,7 @@ from .pages_stocks import draw_stock_page, draw_reit_page, draw_smallcap_page
 from .pages_crypto import draw_crypto_page
 from .pages_news import draw_news_page
 from .pages_monthly import draw_monthly_cards_page
-
+from .pages_text_asset import draw_text_asset_page
 from .constants import img_path, ETF_PAGE_BG_IMG, NEWS_PAGE_BG_IMG
 
 from datetime import datetime
@@ -54,7 +54,8 @@ def generate_assembleia_report(
     crypto: list | None = None,
     monthly_rows: list | None = None,
     monthly_label: str | None = None,
-    custom_range_pages: list | None = None,   # <- NOVO
+    custom_range_pages: list | None = None,   
+    text_assets: list | None = None,
     fetch_price_fn=None,   
 ) -> BytesIO:
 
@@ -73,6 +74,7 @@ def generate_assembleia_report(
     monthly_rows   = monthly_rows or []
     monthly_label  = (monthly_label or "").strip()
     custom_range_pages = custom_range_pages or []
+    text_assets = text_assets or []
 
     # ---------- Doc/Frame básicos ----------
     buffer = BytesIO()
@@ -219,6 +221,31 @@ def generate_assembleia_report(
         )
         custom_range_templates.append(custom_range_t)
         
+    def paged_onpage_factory_simple(draw_fn, items: list, onpage_bg=None):
+        """
+        Desenha 1 item de `items` por página:
+        1) pinta o fundo via onpage_bg(c, doc) se fornecido
+        2) chama draw_fn(c, items[i]) e incrementa i
+        """
+        state = {"i": 0}
+
+        def _onpage(c: Canvas, doc_):
+            # 1) fundo
+            if onpage_bg:
+                onpage_bg(c, doc_)
+            # 2) conteúdo
+            if state["i"] < len(items):
+                try:
+                    draw_fn(c, items[state["i"]])
+                except Exception as e:
+                    print(f"[TEXT_ASSET] erro no item {state['i']}: {e}")
+                finally:
+                    state["i"] += 1
+            # se passar do fim: só mantém o fundo (sem erro)
+
+        return _onpage
+
+        
     # ---------- Templates FIXOS (capas/perfis/headers) ----------
     cover_t      = PageTemplate(id="Capa",                frames=[frame], onPage=onpage_capa_with_date)
     news_t       = PageTemplate(id="Noticias",            frames=[frame], onPage=onpage_noticias)
@@ -268,8 +295,7 @@ def generate_assembleia_report(
     hedge_t          = PageTemplate(id="HEDGE",          frames=[frame], onPage=paged_onpage_factory(draw_hedge_page,    hedge,         ETF_PAGE_BG_IMG))
     hedge_news_t     = PageTemplate(id="HEDGE_NEWS",     frames=[frame], onPage=news_onpage_factory(hedge))
 
-    mensal_t         = PageTemplate(id="MENSAL",         frames=[frame], onPage=paged_onpage_factory( draw_monthly_cards_page, ETF_PAGE_BG_IMG))
-
+   
     # ---------- Registrar templates ----------
     templates = [
         cover_t, news_t,
@@ -309,6 +335,44 @@ def generate_assembleia_report(
             story.append(NextPageTemplate(tid))
             story.append(PageBreak())
             story.append(blank)
+            
+    def add_text_assets(story, items: list):
+        """
+        Cria um PageTemplate por item de text_assets e empilha no final.
+        Evita depender de estado compartilhado (state['i']).
+        """
+        if not items:
+            return
+
+        for i, item in enumerate(items):
+            tid = f"TEXT_ASSET_{i}"
+
+            def make_onpage(cur=item):
+                def _onpage(c: Canvas, _doc):
+                    # 1) fundo
+                    try:
+                        onpage_text_asset(c, _doc)
+                    except Exception as e:
+                        print(f"[TEXT_ASSET] fundo: {e}")
+                    # 2) conteúdo do item
+                    try:
+                        draw_text_asset_page(c, cur)
+                    except Exception as e:
+                        print(f"[TEXT_ASSET] item {i} erro: {e}")
+                        # fallback visível
+                        c.setFillColorRGB(1, 1, 1)
+                        c.setFont("Helvetica-Oblique", 11)
+                        c.drawString(60, 80, f"Falha ao renderizar TEXT_ASSET #{i}: {e}")
+                return _onpage
+
+            # registra template específico para ESTE item
+            doc.addPageTemplates([PageTemplate(id=tid, frames=[frame], onPage=make_onpage())])
+
+            # e agenda a página no Story
+            story.append(NextPageTemplate(tid))
+            story.append(PageBreak())
+            story.append(blank)
+
 
     def add_asset_section(story, tpl_id: str, news_tpl_id: str, items: list):
         """
@@ -325,12 +389,6 @@ def generate_assembleia_report(
 
     # ---------- Montagem do Story ----------
     Story = []
-
-    # Capa
-    # Story.append(NextPageTemplate("Capa"))
-    # Story.append(PageBreak())
-    # Story.append(blank)
-
     # Notícias
     Story.append(NextPageTemplate("Noticias"))
     Story.append(PageBreak())
@@ -396,13 +454,7 @@ def generate_assembleia_report(
         Story.append(blank)
         add_asset_section(Story, "STK_ARJ", "STK_ARJ_NEWS", stocks_arj)
 
-    # Hedge
-    if hedge:
-        Story.append(NextPageTemplate("HEDGE_HDR"))
-        Story.append(PageBreak())
-        Story.append(blank)
-        add_asset_section(Story, "HEDGE", "HEDGE_NEWS", hedge)
-
+    
     # Oportunidades
     if stocks_opp:
         Story.append(NextPageTemplate("Oportunidade"))
@@ -417,6 +469,14 @@ def generate_assembleia_report(
         Story.append(blank)
         add_asset_section(Story, "SMCAP_ARJ", "SMCAP_ARJ_NEWS", smallcaps_arj)
 
+    # Hedge
+    if hedge:
+        Story.append(NextPageTemplate("HEDGE_HDR"))
+        Story.append(PageBreak())
+        Story.append(blank)
+        add_asset_section(Story, "HEDGE", "HEDGE_NEWS", hedge)
+
+    
     # Crypto
     if crypto:
         Story.append(NextPageTemplate("Crypto"))
@@ -425,15 +485,12 @@ def generate_assembleia_report(
         add_asset_section(Story, "CRP", "CRP_NEWS", crypto)
 
     # ===== PÁGINAS MENSAIS =====
-   
-
     if _monthly_pages:
         # Página estática (header)
         Story.append(NextPageTemplate("MONTHLY_STATIC"))
         Story.append(PageBreak())
         Story.append(blank)
-        
-        
+           
         # Adicionar cada página dinâmica com seu template específico
         for i, page_data in enumerate(_monthly_pages):
             template_id = f"MONTHLY_DYN_{i}"
@@ -442,14 +499,15 @@ def generate_assembleia_report(
             Story.append(PageBreak())
             Story.append(Paragraph("", styles["Normal"]))  # Conteúdo mínimo para ativar onPage
             
-     
     # --- PÁGINAS AVULSAS: intervalos customizados (cards brancos) ---
     if custom_range_pages:
         Story.append(NextPageTemplate("CUSTOM_RANGE"))
         Story.append(PageBreak())
         Story.append(blank)
-     
-    
+
+    # cria a página das trocas
+    add_text_assets(Story, text_assets)
+
     # ---------- Render ----------
     doc.build(Story)
     buffer.seek(0)

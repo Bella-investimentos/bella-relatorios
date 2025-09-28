@@ -7,7 +7,7 @@ from .utils import translate_en_to_pt
 # IMPORTS que faltavam
 from .constants import (
     CRYPTO, ETFS_MOD, ETFS_ARR, ETFS_CONS, SMALL_CAPS, STK_ARJ, STK_MOD, STK_OPP, img_path, CAPA_IMG, NEWS_BG_IMG,
-    MODELO_PROTECAO, RISCO_CALCULADO, ACUMULO_CAPITAL, REITS, HEDGE, MENSAL # <- certifique-se de ter esses no constants.py
+    MODELO_PROTECAO, RISCO_CALCULADO, ACUMULO_CAPITAL, REITS, HEDGE, MENSAL, ETF_PAGE_BG_IMG # <- certifique-se de ter esses no constants.py
 )
 from .utils import wrap_and_draw  # <- usado para quebrar/desenhar texto
 
@@ -201,3 +201,7 @@ def onpage_hedge(c: Canvas, doc):
 def onpage_monthly(c: Canvas, doc):
     w, h = A4
     c.drawImage(img_path(MENSAL), 0, 0, width=w, height=h)
+
+def onpage_text_asset(c, doc):
+    w, h = A4
+    c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=w, height=h)
