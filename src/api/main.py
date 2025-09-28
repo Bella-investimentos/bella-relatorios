@@ -11,6 +11,8 @@ from src.api.payload.request.relatorio_cliente import ClienteRelatorioPayload
 from src.services.carteiras.make_report import build_report_from_payload
 from src.services.carteiras.assembleia_report import build_report_assembleia_from_payload
 from src.services.s3.aws_s3_service import generate_temporary_url
+from src.services.carteiras.selecaoAtivos_report import generate_selecaoAtivos_report
+
 
 
 from src.services.carteiras.assembleia.constants import NOME_RELATORIO_ASSEMBLEIA, BUCKET_RELATORIOS
@@ -88,6 +90,24 @@ def generate_report_assembleia():
 
     # Retorna imediatamente
     return {"url": url}
+
+# === Seleção de Ativos ===
+@app.post("/generate-report/selecao-ativos")
+def generate_report_selecao_ativos():
+    required_envs = ["FMP_API_KEY"]
+    missing = [env for env in required_envs if not os.getenv(env)]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"As seguintes variáveis de ambiente não estão definidas: {', '.join(missing)}"
+        )
+
+    try:
+        output_path = generate_selecaoAtivos_report()
+        return {"status": "ok", "file": output_path}
+    except Exception as e:
+        logger.error(f"Erro ao gerar relatório de seleção de ativos: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao gerar relatório de seleção de ativos")
 
    
 

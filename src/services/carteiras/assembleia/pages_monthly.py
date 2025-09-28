@@ -43,12 +43,6 @@ def draw_monthly_cards_page(c: Canvas, page: Dict[str, Any]):
     except Exception:
         pass
 
-    # Título
-    # c.setFillColorRGB(1,1,1)
-    # c.setFont("Helvetica-Bold", 24)
-    # title_y = h - 70
-    # c.drawString(60, title_y, f"Resumo Mensal — {label}")
-
     # Layout adaptável baseado na quantidade de rows
     num_rows = len(rows)
     
