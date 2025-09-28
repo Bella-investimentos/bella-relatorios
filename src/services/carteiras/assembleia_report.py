@@ -158,6 +158,12 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         custom_ranges = [cr.model_dump() if hasattr(cr, 'model_dump') else cr for cr in payload.custom_ranges]
     elif isinstance(payload, dict) and payload.get('custom_ranges'):
         custom_ranges = payload['custom_ranges']
+        
+    text_assets = []
+    if hasattr(payload, 'text_assets') and payload.text_assets:
+        text_assets = [ta.model_dump() if hasattr(ta, 'model_dump') else ta for ta in payload.text_assets]
+    elif isinstance(payload, dict) and payload.get('text_assets'):
+        text_assets = payload['text_assets']
 
     logger.info(
         "[ASSEMBLEIA] pós-prep: bonds=%d, etfs_cons=%d, etfs_mod=%d, etfs_agr=%d, "
@@ -168,6 +174,8 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         len(reits_cons), len(smallcaps_arj), len(crypto), len(hedge),
         len(monthly_rows),
     )
+    
+    
 
     # 3) Montar PDF
     buffer = generate_assembleia_report(
@@ -176,6 +184,7 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         stocks_mod=stocks_mod, stocks_arj=stocks_arj, stocks_opp=stocks_opp,
         reits_cons=reits_cons, smallcaps_arj=smallcaps_arj, crypto=crypto, hedge=hedge,
         monthly_rows=monthly_rows, monthly_label=monthly_label, custom_range_pages=custom_ranges,
+        text_assets=text_assets,
         fetch_price_fn=_fetch_close_price,
     )
 
