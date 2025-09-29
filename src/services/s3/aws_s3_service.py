@@ -1,5 +1,5 @@
 import boto3
-
+from botocore.exceptions import ClientError
 import os
 from io import BytesIO
 
@@ -30,6 +30,23 @@ def upload_pdf_to_s3(buffer: BytesIO, key: str, bucket: str) -> str:
     buffer.seek(0)
     s3.upload_fileobj(buffer, bucket, key, ExtraArgs={"ContentType": "application/pdf"})
 
+    return key
+
+def upload_bytes_to_s3(buffer: BytesIO, key: str, bucket: str, content_type: str) -> str:
+    """
+    Faz upload de bytes (buffer) para o S3 com Content-Type informado.
+    Se o objeto já existir, apaga antes.
+    """
+    # verifica existência
+    try:
+        s3.head_object(Bucket=bucket, Key=key)
+        s3.delete_object(Bucket=bucket, Key=key)
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") != "404":
+            raise
+
+    buffer.seek(0)
+    s3.upload_fileobj(buffer, bucket, key, ExtraArgs={"ContentType": content_type})
     return key
 
 def generate_temporary_url(key: str, bucket: str) -> str:

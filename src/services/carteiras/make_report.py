@@ -1,6 +1,6 @@
 # --- Standard library
 from io import BytesIO
-from datetime import datetime
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 import os
 import shutil
@@ -29,6 +29,12 @@ FMP_API_KEY = os.getenv("FMP_API_KEY")
 # =========================
 # Cálculos e gráficos
 # =========================
+def _last_friday_for_weekly_change(d: date) -> date:
+    if d.weekday() == 4:          # se hoje for sexta, usar a sexta ANTERIOR
+        d = d - timedelta(days=7)
+    while d.weekday() != 4:       # senão, usa a sexta ≤ hoje
+        d -= timedelta(days=1)
+    return d
 def calculate_technical_indicators(bars: List[Any]):
     """
     Calcula indicadores técnicos (EMA10, EMA20, EMA200) a partir dos dados históricos.
@@ -562,14 +568,17 @@ def fetch_crypto(
     """
     Preço: FMP -> yfinance -> CoinGecko
     Gráfico: FMP (histórico diário -> semanal W-FRI) + target
-    Retorna unit_price (último semanal p/ bater com o gráfico),
-    entry_price (EMA20 semanal), target_price (máximo 12m se não vier),
-    vs (% vs entrada).
+    Retorna:
+      - unit_price = preço atual (spot) para o card
+      - entry_price = EMA20 semanal
+      - target_price = máximo de 12 meses, salvo override
+      - vs = variação semanal em %, comparando o spot com o fechamento da “sexta de referência”
+            (se hoje for sexta, usa a sexta ANTERIOR; senão, a sexta ≤ hoje).
     """
     sym_raw = symbol.strip()
     sym_fmp = sym_raw.upper().replace("-", "")
     if not sym_fmp.endswith("USD"):
-        sym_fmp = f"{sym_fmp}USD"                               # FMP: BTCUSD
+        sym_fmp = f"{sym_fmp}USD"  # FMP: BTCUSD
     sym_yf = sym_raw.upper() if "-" in sym_raw else f"{sym_raw.upper()}-USD"  # yfinance: BTC-USD
 
     # -------- helpers de preço "spot" --------
@@ -624,8 +633,11 @@ def fetch_crypto(
         }
         cg_id = mapping.get(sym_yf.upper()) or sym_yf.split("-")[0].lower()
         try:
-            r = requests.get("https://api.coingecko.com/api/v3/simple/price",
-                             params={"ids": cg_id, "vs_currencies": "usd"}, timeout=10)
+            r = requests.get(
+                "https://api.coingecko.com/api/v3/simple/price",
+                params={"ids": cg_id, "vs_currencies": "usd"},
+                timeout=10
+            )
             if r.ok:
                 data = r.json()
                 if cg_id in data and "usd" in data[cg_id]:
@@ -640,11 +652,10 @@ def fetch_crypto(
         "company_name": (company_name or sym_raw.upper()),
         "quantity": float(quantity or 0.0),
         "type": "CRYPTO",
-        # preenchidos mais abaixo:
-        "unit_price": None,
-        "entry_price": None,
-        "target_price": None,
-        "vs": None,
+        "unit_price": None,     # spot (card)
+        "entry_price": None,    # EMA20 semanal
+        "target_price": None,   # máx 12m (ou override)
+        "vs": None,             # % semanal
         "chart": None,
         "average_growth": expected_growth,
         "averageGrowth": expected_growth,
@@ -661,16 +672,40 @@ def fetch_crypto(
         # 1) Diário (último ano)
         df_daily = _crypto_daily_from_fmp(sym_fmp, years=1)
         if df_daily is None or df_daily.empty:
-            raise ValueError("Sem dados diários (último ano).")
+            # fallback por yfinance
+            t = yf.Ticker(sym_yf)
+            yf_hist = t.history(period="1y", interval="1d", auto_adjust=True)
+            if yf_hist is not None and not yf_hist.empty:
+                df_daily = (
+                    yf_hist.reset_index()[["Date","Close"]]
+                    .rename(columns={"Date":"date","Close":"close"})
+                )
+            else:
+                raise ValueError("Sem dados diários (último ano).")
+        if not pd.api.types.is_datetime64_any_dtype(df_daily["date"]):
+            df_daily["date"] = pd.to_datetime(df_daily["date"])
 
-        # 2) Semanal (W-FRI) para casar com os demais
+        # 2) Semanal (W-FRI) para o gráfico
         weekly_df = _to_weekly(df_daily)
         if weekly_df is None or weekly_df.empty:
             raise ValueError("Sem dados semanais após o resample.")
 
-        # 3) unit_price: último fechamento SEMANAL (bate com o gráfico)
-        last_friday_close = float(weekly_df["close"].iloc[-1])
-        d["unit_price"] = last_friday_close
+        # 3) unit_price: PREÇO ATUAL (spot) no card
+        d["unit_price"] = float(spot_price)
+
+        # 3b) sexta de referência para VS: “sexta anterior se hoje for sexta”
+        from datetime import date, timedelta
+        def _last_friday_for_weekly_change(dref: date) -> date:
+            if dref.weekday() == 4:  # sexta
+                dref = dref - timedelta(days=7)
+            while dref.weekday() != 4:
+                dref -= timedelta(days=1)
+            return dref
+
+        ref_friday = _last_friday_for_weekly_change(date.today())
+        ref_ts = pd.Timestamp(ref_friday)
+        ref_series = df_daily.loc[df_daily["date"] <= ref_ts, "close"].dropna()
+        last_friday_close = float(ref_series.iloc[-1]) if not ref_series.empty else None
 
         # 4) entry_price: EMA20 semanal
         wk_close = weekly_df.set_index("date")["close"]
@@ -683,34 +718,40 @@ def fetch_crypto(
         final_target = target_price if target_price is not None else computed_target
         d["target_price"] = final_target
 
-        # 6) VS (fração): spot atual vs fechamento da ÚLTIMA SEXTA
-        #    Ex.: 0.025 = +2,5%
-        if last_friday_close > 0:
-            d["vs"] = (float(spot_price) / last_friday_close) - 1.0
-        else:
-            d["vs"] = None
+        # 6) VS correto em %
+        d["vs"] = ((float(spot_price) / last_friday_close) - 1.0) * 100.0 if last_friday_close else None
 
-        # 7) Gráfico
+        # 7) Gráfico: semanais + (opcional) linha do preço atual
         if want_chart:
-            bars = _weekly_df_to_bars(weekly_df)  # [Bar(date, close)]
+            bars = _weekly_df_to_bars(weekly_df)
             if bars:
-                chart_path = generate_chart(
-                    d["symbol"],
-                    weekly_bars=bars,
-                    target_price=final_target,
-                    outdir="templates/static",
-                )
+                # garante pasta de saída
+                os.makedirs("templates/static", exist_ok=True)
+                try:
+                    chart_path = generate_chart(
+                        d["symbol"],
+                        weekly_bars=bars,
+                        target_price=final_target,
+                        current_price=d["unit_price"],  # se a função aceitar
+                        outdir="templates/static",
+                    )
+                except TypeError:
+                    # compat: se generate_chart não aceitar current_price
+                    chart_path = generate_chart(
+                        d["symbol"],
+                        weekly_bars=bars,
+                        target_price=final_target,
+                        outdir="templates/static",
+                    )
                 d["chart"] = chart_path
 
     except Exception as e:
         print(f"⚠️ Erro ao preparar cripto {symbol}: {e}")
-        # Se der erro no histórico, ainda retornamos algo útil usando o spot:
         if d["unit_price"] is None:
             d["unit_price"] = float(spot_price)
 
-    # 8) investimento (sempre no final)
+    # 8) investimento
     d["investment"] = float(d["unit_price"] or spot_price) * d["quantity"]
-
     return d
 
 def make_real_estate_position(name: str, invested_value: float, appreciation: float):

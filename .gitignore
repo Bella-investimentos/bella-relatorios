@@ -8,9 +8,3 @@ charts/
 *api_key*
 *.key
 templates/static/
-# não subir a pasta inteira
-src/services/carteiras/selecaoAtivos/
-
-# não subir este arquivo
-src/services/carteiras/selecaoAtivos_report.py
-dados_selecaoAtivos/

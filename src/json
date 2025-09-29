@@ -175,5 +175,13 @@
   ]
   "crypto": [
   { "symbol": "BTC-USD", "entry_price": 112.38, "target_price": 124.46 }
+  ],
+
+  "text_assets": [
+    {
+      "symbol": "SPY",
+      "kind": "etf",
+      "text": "O ETF SPY apresentou desempenho sólido..."
+    }]
   ]
 }
