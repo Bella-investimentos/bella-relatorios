@@ -28,22 +28,14 @@ from .selecaoAtivos.compute_metrics import compute_group
 
 # Quais abas (planilhas publicadas em CSV) compõem o consolidado
 ABAS = {
-    # "BLUSHIP": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=243135025&single=true&output=csv",
-    # "INDUSTRIA": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=2059114322&single=true&output=csv",
-    # "ENERGIA": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=1064838865&single=true&output=csv",
-    # "UTILITIES": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=1388939024&single=true&output=csv",
-    # "CONSUMER CYCLICALS": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=1392568327&single=true&output=csv",
-    # "ACADEMIC E EDUCATIONAL SERVICES": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=832344307&single=true&output=csv",
-    # "BASIC MATERIALS": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=91996730&single=true&output=csv",
-    # "CONSUMER NON-CYCLICALS": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=791688509&single=true&output=csv",
-    # "FINANCIALS": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=574429269&single=true&output=csv",
-    # "HEALTHCARE": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=1088163130&single=true&output=csv",
-    # "REAL ESTATE": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=376149182&single=true&output=csv",
+    "INDUSTRIA": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=2059114322&single=true&output=csv",
+    "CONSUMER CYCLICALS": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=1392568327&single=true&output=csv",
+    "FINANCIALS": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=574429269&single=true&output=csv",
     "TECHNOLOGY": "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQkGisTbFcAESZNa9CXtkQmyzKuxQK3zmF5mNrA4No5vEf7f2A9OZJh-W2tOdPUHXedUZr3qNDvgL/pub?gid=1558764950&single=true&output=csv",
 }
 
 # ===== Parâmetros =====
-TOP_N = 5  # altere aqui para 25/100/etc.
+TOP_N = 50  # altere aqui para 25/100/etc.
 
 
 # ===== Utilidades locais =====
