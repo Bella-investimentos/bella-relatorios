@@ -19,7 +19,7 @@ from src.services.carteiras.assembleia.constants import NOME_RELATORIO_ASSEMBLEI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Portfolio API", version="1.2.0")
+app = FastAPI(title="Portfolio API", version="1.3.0")
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 app.add_middleware(

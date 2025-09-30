@@ -5,6 +5,7 @@ import re
 import pandas as pd
 from datetime import datetime
 
+
 # Sheets -> DF (sem salvar) — a função pode retornar path OU DataFrame; tratamos ambos
 from .selecaoAtivos.fetch_sheets import fetch_and_save_sheets
 
@@ -35,7 +36,7 @@ ABAS = {
 }
 
 # ===== Parâmetros =====
-TOP_N = 50  # altere aqui para 25/100/etc.
+TOP_N = 30  # altere aqui para 25/100/etc.
 
 
 # ===== Utilidades locais =====
@@ -107,6 +108,18 @@ def _normalize_scores_df(df: pd.DataFrame) -> pd.DataFrame:
         df.rename(columns={col_tk: "Ticker"}, inplace=True)
     if col_sc and col_sc != "Score":
         df.rename(columns={col_sc: "Score"}, inplace=True)
+        
+    if "Ticker" not in df.columns or "Score" not in df.columns:
+        if df.shape[1] >= 2:
+            first_col, second_col = df.columns[:2]
+            # força A->Ticker e B->Score
+            ren = {}
+            if "Ticker" not in df.columns:
+                ren[first_col] = "Ticker"
+            if "Score" not in df.columns:
+                ren[second_col] = "Score"
+            if ren:
+                df.rename(columns=ren, inplace=True)
 
     # 3) Se ainda não há "Ticker", inferir linha a linha
     if "Ticker" not in df.columns:
@@ -216,6 +229,11 @@ def generate_selecaoAtivos_report(payload: dict | None = None):
 
             df_simple = compute_simple_analysis(symbols_targets, scores_dict=scores_dict)
             base = df_metrics.merge(df_simple, on="symbol", how="left")
+            if "score" not in base.columns:
+                base["score"] = None
+            if "Score" in base.columns:
+                base["score"] = base["score"].fillna(base["Score"])
+                base.drop(columns=["Score"], inplace=True)
             base["VR"] = base.apply(lambda r: calculate_vr(r["DERI"], r["MEVAR"]), axis=1)
             base.insert(0, "grupo", setor)
 
