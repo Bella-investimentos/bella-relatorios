@@ -6,10 +6,10 @@ import pandas as pd
 from datetime import datetime
 
 
-# Sheets -> DF (sem salvar) — a função pode retornar path OU DataFrame; tratamos ambos
+
 from .selecaoAtivos.fetch_sheets import fetch_and_save_sheets
 
-# Agrupamento por setor em MEMÓRIA (não salva CSVs)
+
 from src.services.carteiras.selecaoAtivos.organize_sectors import organize_by_sector_from_df
 
 # Builder do Excel final
@@ -36,7 +36,7 @@ ABAS = {
 }
 
 # ===== Parâmetros =====
-TOP_N = 30  # altere aqui para 25/100/etc.
+TOP_N = 25 # altere aqui para 25/100/etc.
 
 
 # ===== Utilidades locais =====
