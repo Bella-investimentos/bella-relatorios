@@ -4,7 +4,7 @@ from io import BytesIO
 import logging
 
 
-from .assembleia.prep import enrich_payload_with_make_report, fill_auto_notes
+from .assembleia.prep import enrich_payload_with_make_report, fill_auto_notes, append_earnings_notes_auto
 from .assembleia.builder import generate_assembleia_report
 from src.services.s3.aws_s3_service import upload_pdf_to_s3
 from src.services.carteiras.assembleia.constants import NOME_RELATORIO_ASSEMBLEIA, BUCKET_RELATORIOS
@@ -141,6 +141,8 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
     
     enriched = enrich_payload_with_make_report(payload)
     enriched = fill_auto_notes(enriched)  
+    append_earnings_notes_auto(enriched)
+
     monthly_rows, monthly_label = build_monthly_rows(enriched)
 
     # 2) Extrair listas para o builder
@@ -178,8 +180,19 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         len(monthly_rows),
     )
     
-    
+    # depois de enriched e antes de chamar generate_assembleia_report(...)
+    all_items = _collect_all_items(enriched)
+    toc_symbols = [
+        (
+            (it.get("symbol") or "").upper(),
+            it.get("company_name") or it.get("name") or (it.get("symbol") or "").upper()
+        )
+        for it in all_items
+        if (it.get("symbol") or "").strip()
+    ]
 
+    
+    
     # 3) Montar PDF
     buffer = generate_assembleia_report(
         bonds=bonds,
@@ -189,6 +202,7 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         monthly_rows=monthly_rows, monthly_label=monthly_label, custom_range_pages=custom_ranges,
         text_assets=text_assets,
         fetch_price_fn=_fetch_close_price,
+        toc_symbols=toc_symbols,
     )
 
     # 4) Upload (opcional) e retorno
