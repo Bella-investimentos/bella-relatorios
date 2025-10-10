@@ -67,7 +67,7 @@ def calculate_technical_indicators(bars: List[Any]):
 
     return ema_10_value, ema_20_value, ema_200_value, df
 
-def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[float], outdir="templates/static"):
+def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[float], current_price: Optional[float] = None, outdir="templates/static"):
     """
     Gera gráfico SEMANAL com EMA10, EMA20 e EMA200.
     Retorna caminho absoluto do PNG ou None se dados insuficientes.
@@ -99,7 +99,8 @@ def generate_chart(symbol: str, weekly_bars: List[Any], target_price: Optional[f
     plt.figure(figsize=(10, 5))
 
     # Preço semanal
-    current_price = df['close'].iloc[-1]
+    if current_price is None:
+        current_price = df['close'].iloc[-1]
     plt.plot(df.index, df['close'], label=f'Preço Atual: ${current_price:.2f}', linewidth=2.5, color='#2E86AB')
 
     # Preço-alvo (se houver)
@@ -665,7 +666,7 @@ def fetch_crypto(
     spot_price = _fmp_price() or _yf_price() or _coingecko_price()
     if spot_price is None:
         raise RuntimeError(f"Sem preço disponível para {symbol}")
-
+    d["unit_price"] = float(spot_price)
     # -------- histórico + semanais + indicadores --------
     chart_path = None
     try:
@@ -690,10 +691,7 @@ def fetch_crypto(
         if weekly_df is None or weekly_df.empty:
             raise ValueError("Sem dados semanais após o resample.")
 
-        # 3) unit_price: PREÇO ATUAL (spot) no card
-        d["unit_price"] = float(spot_price)
-
-        # 3b) sexta de referência para VS: “sexta anterior se hoje for sexta”
+        # 3b) sexta de referência para VS: "sexta anterior se hoje for sexta"
         from datetime import date, timedelta
         def _last_friday_for_weekly_change(dref: date) -> date:
             if dref.weekday() == 4:  # sexta
@@ -703,9 +701,19 @@ def fetch_crypto(
             return dref
 
         ref_friday = _last_friday_for_weekly_change(date.today())
-        ref_ts = pd.Timestamp(ref_friday)
-        ref_series = df_daily.loc[df_daily["date"] <= ref_ts, "close"].dropna()
-        last_friday_close = float(ref_series.iloc[-1]) if not ref_series.empty else None
+
+        # Normalizar datas para comparação correta
+        df_daily["date"] = pd.to_datetime(df_daily["date"]).dt.tz_localize(None).dt.normalize()
+
+        # garanta ORDEM ASC
+        df_daily = df_daily.sort_values("date")
+
+        # Normalizar ref_friday para pd.Timestamp
+        ref_friday_ts = pd.Timestamp(ref_friday).normalize()
+
+        # pegue o ÚLTIMO registro <= sexta de referência
+        row = df_daily.loc[df_daily["date"] <= ref_friday_ts].tail(1)
+        last_friday_close = float(row["close"].iloc[0]) if not row.empty else None
 
         # 4) entry_price: EMA20 semanal
         wk_close = weekly_df.set_index("date")["close"]
@@ -719,8 +727,10 @@ def fetch_crypto(
         d["target_price"] = final_target
 
         # 6) VS correto em %
-        d["vs"] = ((float(spot_price) / last_friday_close) - 1.0) * 100.0 if last_friday_close else None
+        d["vs"] = ((float(spot_price) / last_friday_close) - 1.0) if last_friday_close else None
 
+        
+        
         # 7) Gráfico: semanais + (opcional) linha do preço atual
         if want_chart:
             bars = _weekly_df_to_bars(weekly_df)
@@ -732,7 +742,7 @@ def fetch_crypto(
                         d["symbol"],
                         weekly_bars=bars,
                         target_price=final_target,
-                        current_price=d["unit_price"],  # se a função aceitar
+                        current_price=float(spot_price),  # se a função aceitar
                         outdir="templates/static",
                     )
                 except TypeError:
