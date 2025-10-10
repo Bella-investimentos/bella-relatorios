@@ -36,7 +36,7 @@ ABAS = {
 }
 
 # ===== Parâmetros =====
-TOP_N = 25 # altere aqui para 25/100/etc.
+TOP_N = 30 # altere aqui para 25/100/etc.
 
 
 # ===== Utilidades locais =====

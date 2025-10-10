@@ -56,7 +56,8 @@ def generate_assembleia_report(
     monthly_label: str | None = None,
     custom_range_pages: list | None = None,   
     text_assets: list | None = None,
-    fetch_price_fn=None,   
+    fetch_price_fn=None, 
+    toc_symbols: list | None = None,  
 ) -> BytesIO:
 
     # ---------- Normalização de entradas ----------
@@ -75,6 +76,8 @@ def generate_assembleia_report(
     monthly_label  = (monthly_label or "").strip()
     custom_range_pages = custom_range_pages or []
     text_assets = text_assets or []
+    toc_symbols = toc_symbols or []
+
 
     # ---------- Doc/Frame básicos ----------
     buffer = BytesIO()
@@ -87,16 +90,95 @@ def generate_assembleia_report(
     frame = Frame(50, 50, A4[0] - 100, A4[1] - 100, id="f")
 
     # ---------- Helpers/Fábricas (definidos ANTES do uso) ----------
-    def paged_onpage_factory(draw_fn, items: list, bg_img: str | None = None):
-        """
-        Para cada página, desenha o próximo item da lista com draw_fn(canvas, item).
-        Quando os itens acabam, opcionalmente desenha apenas um BG (se passado).
-        """
-        state = {"i": 0}
+    def onpage_capa_with_date(c: Canvas, doc_):
+        onpage_capa(c, doc_)
+        data_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M:%S")  # <- agora com fuso
+        c.setFont("Helvetica", 9)
+        c.setFillColor(white)
+        c.drawRightString(A4[0] - 50, 20, f"{data_str}")
+        c.setFillColor(black)
 
+    
+    def onpage_toc_factory(items: list):
+        """
+        Desenha uma página (ou mais) de Índice, com links clicáveis para cada ativo.
+        items: lista de tuplas (symbol, name) OU dicts com 'symbol'/'name'
+        """
+        def _onpage(c: Canvas, _doc):
+            # (opcional) fundo padrão:
+            try:
+                c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
+            except Exception:
+                pass
+
+            # Título
+            c.setFont("Helvetica-Bold", 24)
+            c.setFillColorRGB(1,1,1)
+            c.drawString(60, 780, "Índice de Ativos")
+            c.setFillColorRGB(0,0,0)
+            c.setFont("Helvetica", 12)
+
+            y = 740
+            for it in items:
+                # aceita (sym, name) ou dict
+                if isinstance(it, (tuple, list)) and len(it) >= 1:
+                    sym = (it[0] or "").upper()
+                    name = (it[1] if len(it) > 1 else it[0]) or sym
+                elif isinstance(it, dict):
+                    sym = (it.get("symbol") or "").upper()
+                    name = it.get("company_name") or it.get("name") or sym
+                else:
+                    continue
+                if not sym:
+                    continue
+
+                line = f"{sym} — {name}"
+                c.drawString(60, y, line)
+                w = c.stringWidth(line, "Helvetica", 12)
+
+                # link para destino nomeado 'sym'
+                c.linkRect(
+                    "",
+                    destinationname=sym,
+                    Rect=(60, y-2, 60+w, y+12),
+                    relative=1,
+                    Border=[0, 0, 0] 
+                )
+                y -= 18
+                
+
+        return _onpage
+
+    
+    def paged_onpage_factory(draw_fn, items: list, bg_img: str | None = None):
+        state = {"i": 0}
         def _onpage(c: Canvas, _doc):
             if state["i"] < len(items):
-                draw_fn(c, items[state["i"]])
+                item = items[state["i"]]
+
+                # --- NOVO: bookmark + outline ---
+                try:
+                    sym = (item.get("symbol") or "").upper()
+                except Exception:
+                    sym = ""
+                try:
+                    name = item.get("company_name") or item.get("name") or sym
+                except Exception:
+                    name = sym
+
+                if sym:
+                    c.bookmarkPage(sym)  # destino que o TOC usa
+                    c.addOutlineEntry(f"{sym} — {name}", sym, level=0, closed=False)
+
+                # fundo
+                if bg_img:
+                    try:
+                        c.drawImage(img_path(bg_img), 0, 0, width=A4[0], height=A4[1])
+                    except Exception:
+                        pass
+
+                # conteúdo
+                draw_fn(c, item)
                 state["i"] += 1
             else:
                 if bg_img:
@@ -104,8 +186,8 @@ def generate_assembleia_report(
                         c.drawImage(img_path(bg_img), 0, 0, width=A4[0], height=A4[1])
                     except Exception:
                         pass
-
         return _onpage
+
 
     def news_onpage_factory(items: list):
         """
@@ -125,14 +207,7 @@ def generate_assembleia_report(
 
         return _onpage
 
-    def onpage_capa_with_date(c: Canvas, doc_):
-        onpage_capa(c, doc_)
-        data_str = datetime.now(TZ).strftime("%d/%m/%Y %H:%M:%S")  # <- agora com fuso
-        c.setFont("Helvetica", 9)
-        c.setFillColor(white)
-        c.drawRightString(A4[0] - 50, 20, f"{data_str}")
-        c.setFillColor(black)
-
+    
         
     # Substitua TODA a seção monthly no builder.py (desde paginate_monthly até o final da seção)
 
@@ -222,32 +297,40 @@ def generate_assembleia_report(
         custom_range_templates.append(custom_range_t)
         
     def paged_onpage_factory_simple(draw_fn, items: list, onpage_bg=None):
-        """
-        Desenha 1 item de `items` por página:
-        1) pinta o fundo via onpage_bg(c, doc) se fornecido
-        2) chama draw_fn(c, items[i]) e incrementa i
-        """
         state = {"i": 0}
-
         def _onpage(c: Canvas, doc_):
-            # 1) fundo
             if onpage_bg:
                 onpage_bg(c, doc_)
-            # 2) conteúdo
             if state["i"] < len(items):
+                cur = items[state["i"]]
+
+                # --- NOVO: bookmark + outline (se tiver symbol) ---
                 try:
-                    draw_fn(c, items[state["i"]])
+                    sym = (cur.get("symbol") or "").upper()
+                except Exception:
+                    sym = ""
+                try:
+                    name = cur.get("company_name") or cur.get("name") or sym
+                except Exception:
+                    name = sym
+                if sym:
+                    c.bookmarkPage(sym)
+                    c.addOutlineEntry(f"{sym} — {name}", sym, level=0, closed=False)
+
+                try:
+                    draw_fn(c, cur)
                 except Exception as e:
                     print(f"[TEXT_ASSET] erro no item {state['i']}: {e}")
                 finally:
                     state["i"] += 1
-            # se passar do fim: só mantém o fundo (sem erro)
-
         return _onpage
+
 
         
     # ---------- Templates FIXOS (capas/perfis/headers) ----------
+    
     cover_t      = PageTemplate(id="Capa",                frames=[frame], onPage=onpage_capa_with_date)
+    toc_t = PageTemplate(id="TOC", frames=[frame], onPage=onpage_toc_factory(toc_symbols))
     news_t       = PageTemplate(id="Noticias",            frames=[frame], onPage=onpage_noticias)
     perfilcons_t = PageTemplate(id="PerfilConservador",   frames=[frame], onPage=onpage_perfil_cons)
     perfilmod_t  = PageTemplate(id="PerfilModerado",      frames=[frame], onPage=onpage_perfil_mod)
@@ -298,7 +381,9 @@ def generate_assembleia_report(
    
     # ---------- Registrar templates ----------
     templates = [
-        cover_t, news_t,
+        
+        cover_t, 
+        toc_t, news_t,
         perfilcons_t, perfilmod_t, perfilarj_t, perfilopp_t,
         etfs_cons_hdr, etfs_mod_hdr, etfs_arr_hdr,
         acao_mod_t, acao_arr_t,
@@ -328,8 +413,21 @@ def generate_assembleia_report(
 
             def make_onpage(bond=b):
                 def _onpage(c: Canvas, _doc):
+                    # bookmark do bond
+                    try:
+                        sym = (bond.get("symbol") or f"BOND_{i}").upper()
+                    except Exception:
+                        sym = f"BOND_{i}"
+                    try:
+                        name = bond.get("name") or bond.get("issuer") or sym
+                    except Exception:
+                        name = sym
+                    c.bookmarkPage(sym)
+                    c.addOutlineEntry(f"{sym} — {name}", sym, level=0, closed=False)
+
                     draw_bond_page(c, bond)
                 return _onpage
+
 
             doc.addPageTemplates([PageTemplate(id=tid, frames=[frame], onPage=make_onpage())])
             story.append(NextPageTemplate(tid))
@@ -389,6 +487,13 @@ def generate_assembleia_report(
 
     # ---------- Montagem do Story ----------
     Story = []
+    # ÍNDICE
+    if toc_symbols:
+        Story.append(NextPageTemplate("TOC"))
+        Story.append(Paragraph(" ", styles["Normal"]))  # conteúdo mínimo para disparar o onPage
+        Story.append(PageBreak())                       # encerra a página do índice
+
+    
     # Notícias
     Story.append(NextPageTemplate("Noticias"))
     Story.append(PageBreak())

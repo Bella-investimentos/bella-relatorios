@@ -167,9 +167,7 @@ def draw_crypto_page(c: Canvas, payload: dict):
                         preserveAspectRatio=True, anchor='c')
         except Exception:
             pass
-    if g.get("border"):
-        c.setFillColorRGB(1, 1, 1); c.setLineWidth(1.2)
-        c.roundRect(g["x"], g["y"], g["w"], g["h"], 8, stroke=1, fill=0)
+    
 
     # ----- nota -----
     n = spec["note"]
