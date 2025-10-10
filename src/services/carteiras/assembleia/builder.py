@@ -115,7 +115,7 @@ def generate_assembleia_report(
             c.setFont("Helvetica-Bold", 24)
             c.setFillColorRGB(1,1,1)
             c.drawString(60, 780, "Índice de Ativos")
-            c.setFillColorRGB(0,0,0)
+            c.setFillColorRGB(1,1,1)
             c.setFont("Helvetica", 12)
 
             y = 740
