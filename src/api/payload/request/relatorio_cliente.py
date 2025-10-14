@@ -45,8 +45,10 @@ class ClienteRelatorioPayload(BaseModel):
     etfs: List[EquityIn] = Field(default_factory=list)
     etfs_op: List[EquityIn] = Field(default_factory=list)
     etfs_af: List[EquityIn] = Field(default_factory=list)
+    hedge: List[EquityIn] = Field(default_factory=list)
     cryptos: List[CryptoIn] = Field(default_factory=list)
     real_estates: List[RealEstateIn] = Field(default_factory=list)
+    liquidity_value: Optional[float] = 0.0
     user_id: Optional[str] = None
     custom_ranges: List[CustomRangeIn] = Field(default_factory=list)
     

@@ -903,6 +903,12 @@ def build_report_from_payload(payload: Dict[str, Any]) -> BytesIO:
     etfs = _mk_equities(payload.get("etfs"), is_etf=True)
     etfs_op = _mk_equities(payload.get("etfs_op"), is_etf=True)
     etfs_af = _mk_equities(payload.get("etfs_af"), is_etf=True, antifragile=True)
+    hedge = _mk_equities(payload.get("hedge"), is_etf=True)
+    raw_liq     = payload.get("liquidity_value", 0.0)                         # ✅ novo
+    try:
+        liquidity_value = float(raw_liq) if raw_liq is not None else 0.0
+    except (TypeError, ValueError):
+        liquidity_value = 0.0
 
     # Criptos
     cryptos_in = payload.get("cryptos") or []
@@ -931,15 +937,17 @@ def build_report_from_payload(payload: Dict[str, Any]) -> BytesIO:
 
     # Renderiza e exporta
     pdf_buffer = generate_pdf_buffer(
-    investor=investor,
-    bonds=bonds,
-    reits=reits,
-    stocks=stocks,
-    etfs=etfs,
-    etfs_op=etfs_op,
-    etfs_af=etfs_af,
-    opp_stocks=opp_stocks,
-    cryptos=cryptos,
-    real_estates=real_estates
+        investor=investor,
+        bonds=bonds,
+        reits=reits,
+        stocks=stocks,
+        etfs=etfs,
+        etfs_op=etfs_op,
+        etfs_af=etfs_af,
+        opp_stocks=opp_stocks,
+        hedge=hedge,
+        cryptos=cryptos,
+        real_estates=real_estates,
+        liquidity_value=liquidity_value or 0.0,
     )
     return pdf_buffer
