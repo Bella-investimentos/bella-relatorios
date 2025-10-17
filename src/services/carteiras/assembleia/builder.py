@@ -39,7 +39,47 @@ except Exception:
     import pytz                        # fallback se zoneinfo/tzdata não estiver disponível
     TZ = pytz.timezone("America/Sao_Paulo")
 
+# Adicione esta função helper no início do arquivo, após os imports:
 
+def draw_back_to_index_button(c: Canvas):
+    """
+    Desenha um botão 'Voltar ao Índice' no topo direito da página
+    """
+    # Posição no topo direito
+    x = A4[0] - 130  # 130px da borda direita
+    y = A4[1] - 35   # 35px do topo
+    
+    # Desenha um retângulo como fundo do botão
+    c.setFillColorRGB(0.06, 0.17, 0.36)  # azul escuro
+    c.roundRect(x - 3, y - 3, 100, 20, 4, fill=0, stroke=0)
+    # Texto do botão
+    c.setFillColorRGB(1, 1, 1)  # branco
+    c.setFont("Helvetica-Bold", 8)
+    
+    # Ícone de seta (usando caractere Unicode)
+    arrow = "←"  # ou use "↩" ou "⬅"
+    c.drawString(x, y + 3, f"{arrow} Voltar ao Índice")
+    
+    # Cria link clicável para o índice
+    c.linkRect(
+        "",
+        destinationname="TOC_INDEX",  # destino nomeado do índice
+        Rect=(x - 5, y - 5, x + 115, y + 20),
+        relative=1,
+        Border=[0, 0, 0]
+    )
+
+# def _classification_for_group(group: str) -> str:
+#     CONS = {"bonds", "reits_cons", "etfs_cons"}
+#     MOD  = {"etfs_mod", "stocks_mod"}
+#     ARJ  = {"etfs_agr", "stocks_arj", "stocks_opp", "smallcaps_arj", "hedge", "crypto"}
+
+#     if group in CONS: return "Conservadores"
+#     if group in MOD:  return "Moderados"
+#     if group in ARJ:  return "Arrojados"
+#     return "Outros"
+
+    
 def generate_assembleia_report(
     bonds: list | None = None,
     etfs_cons: list | None = None,   # ETFs Conservadoras
@@ -58,6 +98,8 @@ def generate_assembleia_report(
     text_assets: list | None = None,
     fetch_price_fn=None, 
     toc_symbols: list | None = None,  
+    
+    
 ) -> BytesIO:
 
     # ---------- Normalização de entradas ----------
@@ -99,28 +141,37 @@ def generate_assembleia_report(
         c.setFillColor(black)
 
     
+    
     def onpage_toc_factory(items: list):
         """
-        Desenha uma página (ou mais) de Índice, com links clicáveis para cada ativo.
+        Desenha uma página (ou mais) de índice, com símbolos e nomes em 2 colunas.
         items: lista de tuplas (symbol, name) OU dicts com 'symbol'/'name'
         """
         def _onpage(c: Canvas, _doc):
-            # (opcional) fundo padrão:
+            c.bookmarkPage("TOC_INDEX")
+            # Fundo padrão:
             try:
                 c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
             except Exception:
                 pass
 
             # Título
-            c.setFont("Helvetica-Bold", 24)
+            c.setFont("Helvetica-Bold", 18)
             c.setFillColorRGB(1,1,1)
             c.drawString(60, 780, "Índice de Ativos")
-            c.setFillColorRGB(1,1,1)
-            c.setFont("Helvetica", 12)
-
-            y = 740
-            for it in items:
-                # aceita (sym, name) ou dict
+            
+            # Configurações das colunas
+            col1_x = 60        # x da primeira coluna
+            col2_x = 320       # x da segunda coluna
+            y_start = 730      # y inicial
+            y_spacing = 22     # espaço entre linhas
+            max_name_length = 25  # caracteres máximos do nome
+            
+            y = y_start
+            col = 1  # começar na coluna 1
+            
+            for idx, it in enumerate(items):
+                # Extrai símbolo e nome
                 if isinstance(it, (tuple, list)) and len(it) >= 1:
                     sym = (it[0] or "").upper()
                     name = (it[1] if len(it) > 1 else it[0]) or sym
@@ -132,23 +183,55 @@ def generate_assembleia_report(
                 if not sym:
                     continue
 
-                line = f"{sym} — {name}"
-                c.drawString(60, y, line)
-                w = c.stringWidth(line, "Helvetica", 12)
-
-                # link para destino nomeado 'sym'
+                # Abrevia o nome se necessário
+                if len(name) > max_name_length:
+                    name = name[:max_name_length-3] + "..."
+                
+                # Define x baseado na coluna atual
+                x = col1_x if col == 1 else col2_x
+                
+                # Desenha símbolo (bold) e nome (normal)
+                c.setFont("Helvetica-Bold", 11)
+                c.setFillColorRGB(1,1,1)
+                c.drawString(x, y, sym)
+                
+                # Nome ao lado do símbolo
+                sym_width = c.stringWidth(sym, "Helvetica-Bold", 11)
+                c.setFont("Helvetica", 9)
+                c.drawString(x + sym_width + 5, y, f"- {name}")
+                
+                # Cria área clicável
+                total_width = sym_width + 5 + c.stringWidth(f"- {name}", "Helvetica", 9)
                 c.linkRect(
                     "",
                     destinationname=sym,
-                    Rect=(60, y-2, 60+w, y+12),
+                    Rect=(x, y - 2, x + total_width, y + 12),
                     relative=1,
-                    Border=[0, 0, 0] 
+                    Border=[0, 0, 0]
                 )
-                y -= 18
                 
-
+                # Alterna coluna
+                if col == 1:
+                    col = 2
+                else:
+                    col = 1
+                    y -= y_spacing  # só desce linha quando termina as 2 colunas
+                
+                # Verifica se precisa de nova página (aproximadamente 30 linhas = 60 itens)
+                if y < 80 and idx < len(items) - 1:
+                    c.showPage()
+                    # Refaz o fundo e título na nova página
+                    try:
+                        c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
+                    except Exception:
+                        pass
+                    c.setFont("Helvetica-Bold", 24)
+                    c.setFillColorRGB(1,1,1)
+                    c.drawString(60, 780, "Índice de Ativos (cont.)")
+                    y = y_start
+                    col = 1
+                
         return _onpage
-
     
     def paged_onpage_factory(draw_fn, items: list, bg_img: str | None = None):
         state = {"i": 0}
@@ -179,6 +262,7 @@ def generate_assembleia_report(
 
                 # conteúdo
                 draw_fn(c, item)
+                draw_back_to_index_button(c)
                 state["i"] += 1
             else:
                 if bg_img:
@@ -198,6 +282,7 @@ def generate_assembleia_report(
         def _onpage(c: Canvas, _doc):
             if state["i"] < len(items):
                 draw_news_page(c, items[state["i"]])
+                draw_back_to_index_button(c)
                 state["i"] += 1
             else:
                 try:
@@ -262,6 +347,7 @@ def generate_assembleia_report(
             def _onpage(c: Canvas, _doc):
                 print(f"[DEBUG] Template {template_id} - Desenhando página {page_num} com {len(page.get('rows', []))} rows")
                 draw_monthly_cards_page(c, page)
+                draw_back_to_index_button(c)
             return _onpage
         
         template = PageTemplate(id=template_id, frames=[frame], onPage=make_monthly_onpage())
@@ -322,6 +408,7 @@ def generate_assembleia_report(
                 except Exception as e:
                     print(f"[TEXT_ASSET] erro no item {state['i']}: {e}")
                 finally:
+                    draw_back_to_index_button(c)
                     state["i"] += 1
         return _onpage
 
@@ -426,6 +513,7 @@ def generate_assembleia_report(
                     c.addOutlineEntry(f"{sym} — {name}", sym, level=0, closed=False)
 
                     draw_bond_page(c, bond)
+                    draw_back_to_index_button(c)
                 return _onpage
 
 
