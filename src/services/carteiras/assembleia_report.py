@@ -8,7 +8,7 @@ from .assembleia.prep import enrich_payload_with_make_report, fill_auto_notes, a
 from .assembleia.builder import generate_assembleia_report
 from src.services.s3.aws_s3_service import upload_pdf_to_s3
 from src.services.carteiras.assembleia.constants import NOME_RELATORIO_ASSEMBLEIA, BUCKET_RELATORIOS
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import os, requests
 
 logger = logging.getLogger(__name__)
@@ -62,39 +62,74 @@ def _collect_all_items(enriched: dict) -> list[dict]:
             out.append(it)
     return out
 
-def build_monthly_rows(enriched: dict) -> tuple[list[dict], str]:
-    from datetime import timedelta, date  # ← import local para não alterar outros arquivos
-    today = date.today()
-    def _last_friday_on_or_before(d: date) -> date:
-        while d.weekday() != 4:  # 4 = sexta
-            d -= timedelta(days=1)
+#buscando valores para cards do relatório mensal
+def _find_last_available_close(symbol: str, ref_date: date, max_lookback: int = 7) -> tuple[float | None, date | None]:
+    """
+    Tenta pegar o close em ref_date. Se não houver (feriado/fds/sem dado),
+    volta 1 dia por vez até max_lookback dias. Retorna (preco, data_efetiva).
+    """
+    d = ref_date
+    for _ in range(max_lookback + 1):
+        price = _fetch_close_price(symbol, d)
+        if price not in (None, 0):
+            return price, d
+        d = d - timedelta(days=1)
+    return None, None
+
+
+def _parse_front_date(d) -> date | None:
+    """Aceita date ou string (YYYY-MM-DD ou DD/MM/YYYY). Retorna date ou None."""
+    if d is None:
+        return None
+    if isinstance(d, date):
         return d
-    last_friday = _last_friday_on_or_before(today)
-    four_fridays_ago = last_friday - timedelta(weeks=4)
+    if isinstance(d, str):
+        d = d.strip()
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"):
+            try:
+                return datetime.strptime(d, fmt).date()
+            except ValueError:
+                pass
+    return None
+#montando os cards mensais
+def build_monthly_rows(
+    enriched: dict,
+    *,
+    first_week_date=None,   # data vem do front; pode ser quinta, sexta, etc.
+) -> tuple[list[dict], str]:
+    """
+    Monta os cards usando a data de 1ª semana vinda do front.
+    - Se 'first_week_date' não vier/parsear: NÃO monta (rows=[]).
+    - Se a data não tiver pregão, busca o último dia com fechamento anterior.
+    """
+    from datetime import date
+
+    rows: list[dict] = []
+    today = date.today()
     label = f"{today:%B/%Y}".title()
 
-    rows = []
-    # --- placeholders para BONDS: 6 linhas vazias, em azul ---
+    ref_date = _parse_front_date(first_week_date)
+    if ref_date is None:
+        logger.warning("first_week_date ausente ou inválida. Nenhum card será gerado.")
+        return [], label
     for _ in range(6):
         rows.append({
-            "symbol": "",              # vazio → você preenche manualmente depois
-            "company_name": "",
-            "p0": None,
-            "p1": None,
-            "chg": None,
-            "group": "bonds",          # importante p/ colorir azul
-            "placeholder_bond": True,  # flag p/ o renderer saber que é vazio
+            "symbol": "", "company_name": "",
+            "p0": None, "p1": None, "chg": None,
+            "group": "bonds", "placeholder_bond": True,
         })
     for it in _collect_all_items(enriched):
-        sym = (it.get("symbol") or "").upper()
+        sym  = (it.get("symbol") or "").upper()
         name = it.get("company_name") or it.get("name") or sym
         group = _group_of_symbol(enriched, sym)
         color = _rgb_for_group(group)
-        p_first = _fetch_close_price(sym, four_fridays_ago)  # ← usa 4 sextas atrás
-        p_now   = it.get("unit_price")  # já vem do enrich
-        chg = None
-        if p_first not in (None, 0) and p_now not in (None, 0):
-            chg = ((float(p_now)/float(p_first))-1.0)*100.0
+
+        # ← usa EXATAMENTE a data enviada; se não houver fechamento, volta dias
+        p_first, p0_used_date = _find_last_available_close(sym, ref_date)
+
+        p_now = it.get("unit_price")
+        chg = ((float(p_now)/float(p_first))-1.0)*100.0 if p_first not in (None,0) and p_now not in (None,0) else None
+
         rows.append({
             "symbol": sym,
             "company_name": name,
@@ -102,12 +137,13 @@ def build_monthly_rows(enriched: dict) -> tuple[list[dict], str]:
             "p1": p_now,
             "chg": chg,
             "group": group,
-            "color": color,  # (r,g,b) em 0..1
+            "color": color,
+            "p0_date": p0_used_date or ref_date,   # data efetivamente usada (pode ser a quinta, ou quarta, etc.)
         })
-        
 
     return rows, label
 
+ 
 # === abaixo das helpers já existentes ===
 def _group_of_symbol(enriched: dict, sym: str) -> str:
     buckets = [
@@ -123,6 +159,16 @@ def _group_of_symbol(enriched: dict, sym: str) -> str:
             if (it.get("symbol") or "").upper() == sym:
                 return name
     return ""
+
+def _classification_for_group(group: str) -> str:
+    CONS = {"bonds", "reits_cons", "etfs_cons"}
+    MOD  = {"etfs_mod", "stocks_mod"}
+    ARJ  = {"etfs_agr", "stocks_arj", "stocks_opp", "smallcaps_arj", "hedge", "crypto"}
+    if group in CONS: return "Conservadores"
+    if group in MOD:  return "Moderados"
+    if group in ARJ:  return "Arrojados"
+    return "Outros"
+
 
 def _rgb_for_group(group: str) -> tuple[float, float, float]:
     # azul
@@ -143,7 +189,10 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
     enriched = fill_auto_notes(enriched)  
     append_earnings_notes_auto(enriched)
 
-    monthly_rows, monthly_label = build_monthly_rows(enriched)
+    monthly_rows, monthly_label = build_monthly_rows(
+    enriched,
+    first_week_date=payload.get("first_week_date") if isinstance(payload, dict) else getattr(payload, "first_week_date", None),
+)
 
     # 2) Extrair listas para o builder
     bonds          = enriched.get("bonds", []) or []
@@ -191,7 +240,25 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         if (it.get("symbol") or "").strip()
     ]
 
-    
+    # toc_grouped: dict[str, list[tuple[str, str]]] = {
+    #     "Conservadores": [],
+    #     "Moderados": [],
+    #     "Arrojados": []
+    # }
+
+    # for it in all_items:
+    #     sym  = (it.get("symbol") or "").upper()
+    #     if not sym:
+    #         continue
+    #     name = it.get("company_name") or it.get("name") or sym
+    #     group = _group_of_symbol(enriched, sym)
+    #     clf   = _classification_for_group(group)  # <- helper abaixo
+    #     if clf in toc_grouped:
+    #         toc_grouped[clf].append((sym, name))
+
+    # ordena cada seção por símbolo (opcional)
+    # for k in toc_grouped:
+    #     toc_grouped[k].sort(key=lambda t: t[0])
     
     # 3) Montar PDF
     buffer = generate_assembleia_report(
@@ -203,6 +270,7 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         text_assets=text_assets,
         fetch_price_fn=_fetch_close_price,
         toc_symbols=toc_symbols,
+       
     )
 
     # 4) Upload (opcional) e retorno
