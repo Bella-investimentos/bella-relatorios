@@ -148,7 +148,9 @@ def generate_assembleia_report(
         items: lista de tuplas (symbol, name) OU dicts com 'symbol'/'name'
         """
         def _onpage(c: Canvas, _doc):
+            # Cria bookmark para o índice (destino dos botões "voltar")
             c.bookmarkPage("TOC_INDEX")
+            
             # Fundo padrão:
             try:
                 c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
@@ -156,7 +158,7 @@ def generate_assembleia_report(
                 pass
 
             # Título
-            c.setFont("Helvetica-Bold", 18)
+            c.setFont("Helvetica-Bold", 24)
             c.setFillColorRGB(1,1,1)
             c.drawString(60, 780, "Índice de Ativos")
             
@@ -165,12 +167,15 @@ def generate_assembleia_report(
             col2_x = 320       # x da segunda coluna
             y_start = 730      # y inicial
             y_spacing = 22     # espaço entre linhas
-            max_name_length = 25  # caracteres máximos do nome
+            max_name_length = 22  # caracteres máximos do nome (reduzido para dar espaço ao número)
             
             y = y_start
             col = 1  # começar na coluna 1
             
             for idx, it in enumerate(items):
+                # Numeração (começa em 1)
+                num = idx + 1
+                
                 # Extrai símbolo e nome
                 if isinstance(it, (tuple, list)) and len(it) >= 1:
                     sym = (it[0] or "").upper()
@@ -190,18 +195,26 @@ def generate_assembleia_report(
                 # Define x baseado na coluna atual
                 x = col1_x if col == 1 else col2_x
                 
-                # Desenha símbolo (bold) e nome (normal)
-                c.setFont("Helvetica-Bold", 11)
+                # Desenha numeração
+                c.setFont("Helvetica", 11)
+                c.setFillColorRGB(0.8, 0.8, 0.8)  # cinza claro
+                num_str = f"{num}."
+                c.drawString(x, y, num_str)
+                num_width = c.stringWidth(num_str, "Helvetica", 11)
+
+                # Desenha símbolo (bold)
+                x_sym = x + num_width + 5
+                c.setFont("Helvetica-Bold", 12)
                 c.setFillColorRGB(1,1,1)
-                c.drawString(x, y, sym)
-                
+                c.drawString(x_sym, y, sym)
+                sym_width = c.stringWidth(sym, "Helvetica-Bold", 12)
+
                 # Nome ao lado do símbolo
-                sym_width = c.stringWidth(sym, "Helvetica-Bold", 11)
-                c.setFont("Helvetica", 9)
-                c.drawString(x + sym_width + 5, y, f"- {name}")
+                c.setFont("Helvetica", 11)
+                c.drawString(x_sym + sym_width + 5, y, f"- {name}")
                 
                 # Cria área clicável
-                total_width = sym_width + 5 + c.stringWidth(f"- {name}", "Helvetica", 9)
+                total_width = num_width + 5 + sym_width + 5 + c.stringWidth(f"- {name}", "Helvetica", 11)
                 c.linkRect(
                     "",
                     destinationname=sym,
