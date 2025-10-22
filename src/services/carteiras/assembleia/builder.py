@@ -571,7 +571,7 @@ def generate_assembleia_report(
                     c, 
                     items, 
                     fetch_price_fn=fetch_price_fn,
-                    title="ATIVOS INDICADOS QUE SAIRAM DO RELATÓRIO"
+                    title="ATIVOS INDICADOS COM ENTRADA E SAÍDA"
                 )
             else:
                 # só fundo
@@ -791,9 +791,10 @@ def generate_assembleia_report(
     Story.append(blank)
 
     # Perfil Conservador
-    Story.append(NextPageTemplate("PerfilConservador"))
-    Story.append(PageBreak())
-    Story.append(blank)
+    if reits_cons or etfs_cons or bonds:
+        Story.append(NextPageTemplate("PerfilConservador"))
+        Story.append(PageBreak())
+        Story.append(blank)
 
     # BONDS
     add_bonds(Story, bonds)
@@ -813,9 +814,10 @@ def generate_assembleia_report(
         add_asset_section(Story, "ETF_CONS", "ETF_CONS_NEWS", etfs_cons)
 
     # Perfil Moderado
-    Story.append(NextPageTemplate("PerfilModerado"))
-    Story.append(PageBreak())
-    Story.append(blank)
+    if etfs_mod or stocks_mod:
+        Story.append(NextPageTemplate("PerfilModerado"))
+        Story.append(PageBreak())
+        Story.append(blank)
 
     # ETFs Moderados
     if etfs_mod:
@@ -832,9 +834,10 @@ def generate_assembleia_report(
         add_asset_section(Story, "STK_MOD", "STK_MOD_NEWS", stocks_mod)
 
     # Perfil Arrojado
-    Story.append(NextPageTemplate("PerfilArrojado"))
-    Story.append(PageBreak())
-    Story.append(blank)
+    if etfs_agr or stocks_arj or stocks_opp or smallcaps_arj or hedge or crypto:
+        Story.append(NextPageTemplate("PerfilArrojado"))
+        Story.append(PageBreak())
+        Story.append(blank)
 
     # ETFs Agressivos
     if etfs_agr:
@@ -884,20 +887,23 @@ def generate_assembleia_report(
         Story.append(NextPageTemplate("MONTHLY_STATIC"))
         Story.append(PageBreak())
         Story.append(blank)
+        
+         # --- PÁGINAS AVULSAS: intervalos customizados (cards brancos) ---
+        if custom_range_pages:
+            Story.append(NextPageTemplate("CUSTOM_RANGE"))
+            Story.append(PageBreak())
+            Story.append(blank)
            
         # Adicionar cada página dinâmica com seu template específico
-        for i, page_data in enumerate(_monthly_pages):
-            template_id = f"MONTHLY_DYN_{i}"
+        # for i, page_data in enumerate(_monthly_pages):
+        #     template_id = f"MONTHLY_DYN_{i}"
             
-            Story.append(NextPageTemplate(template_id))
-            Story.append(PageBreak())
-            Story.append(Paragraph("", styles["Normal"]))  # Conteúdo mínimo para ativar onPage
+        #     Story.append(NextPageTemplate(template_id))
+        #     Story.append(PageBreak())
+        #     Story.append(Paragraph("", styles["Normal"]))  # Conteúdo mínimo para ativar onPage
             
-    # --- PÁGINAS AVULSAS: intervalos customizados (cards brancos) ---
-    if custom_range_pages:
-        Story.append(NextPageTemplate("CUSTOM_RANGE"))
-        Story.append(PageBreak())
-        Story.append(blank)
+   
+    
 
     # cria a página das trocas
     add_text_assets(Story, text_assets)
