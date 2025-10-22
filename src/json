@@ -105,9 +105,9 @@
       "company": "Comcast Corporation",
       "sector": "Telecomunicações e Mídia",
       "maturity": "15/02/2028",
-      "unit_price": 1084.96,
+      "unit_price": 1086.74,
       "coupon": 7.125,
-      "prev_unit_price": 1081.84,
+      "prev_unit_price": 1073.12,
       "description": [
         "Bond CMCSA Corp 7.125% – Comcast Corporation",
         "Setor: Telecomunicações e Mídia",
@@ -185,3 +185,16 @@
     }]
   ]
 }
+ "custom_ranges": [
+    
+		
+    
+		
+   
+		
+    { "symbol": "FTNT",  "start_date": "2025-09-19", "end_date": "2025-10-17" },
+
+    { "symbol": "WAB",   "start_date": "2025-10-10", "end_date": "2025-10-17" },
+    { "symbol": "CPAY",  "start_date": "2025-10-10", "end_date": "2025-10-17" },
+    { "symbol": "ZS",    "start_date": "2025-09-19", "end_date": "2025-10-17" }
+  ]

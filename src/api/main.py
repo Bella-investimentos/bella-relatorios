@@ -182,7 +182,6 @@ from src.api.payload.request.relatorio_cliente import ClienteRelatorioPayload
 from src.services.carteiras.make_report import build_report_from_payload
 from src.services.carteiras.assembleia_report import build_report_assembleia_from_payload
 from src.services.s3.aws_s3_service import generate_temporary_url, upload_bytes_to_s3
-from src.services.carteiras.selecaoAtivos_report import generate_selecaoAtivos_report
 from src.services.carteiras.assembleia.constants import NOME_RELATORIO_ASSEMBLEIA, BUCKET_RELATORIOS
 
 logging.basicConfig(level=logging.INFO)
@@ -263,99 +262,8 @@ def download_assembleia():
     return {"url": url, "status": "ready"}
 
 
-# === Seleção de Ativos - OTIMIZADO ===
-async def _generate_selecao_async():
-    """Gera o relatório de forma assíncrona"""
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(executor, generate_selecaoAtivos_report)
-    return result
 
 
-@app.post("/generate-report/selecao-ativos")
-async def generate_selecao_ativos(background_tasks: BackgroundTasks):
-    """
-    Inicia geração em background e retorna job_id.
-    Cliente pode consultar status via GET /status/selecao-ativos/{job_id}
-    """
-    required_envs = ["FMP_API_KEY", "AWS_KEY", "AWS_SECRET"]
-    missing = [e for e in required_envs if not os.getenv(e)]
-    if missing:
-        raise HTTPException(400, f"Variáveis faltando: {', '.join(missing)}")
-    
-    job_id = f"selecao_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    
-    # Inicia processamento em background
-    background_tasks.add_task(_process_selecao_report, job_id)
-    
-    return JSONResponse({
-        "status": "processing",
-        "job_id": job_id,
-        "message": "Relatório em processamento. Use GET /status/selecao-ativos/{job_id} para verificar"
-    })
-
-
-async def _process_selecao_report(job_id: str):
-    """Processa o relatório e faz upload"""
-    try:
-        report_cache[job_id] = {"status": "processing", "progress": 0}
-        
-        # Gera relatório
-        result = await _generate_selecao_async()
-        
-        # Normaliza resultado
-        if isinstance(result, str):
-            # É um caminho de arquivo
-            with open(result, "rb") as f:
-                buf = BytesIO(f.read())
-            filename = os.path.basename(result)
-        elif isinstance(result, BytesIO):
-            buf = result
-            filename = f"selecao_ativos_{job_id}.xlsx"
-        else:
-            raise ValueError("Formato inesperado de retorno")
-        
-        report_cache[job_id]["progress"] = 50
-        
-        # Upload para S3
-        key = f"selecao-ativos/{filename}"
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            executor,
-            upload_bytes_to_s3,
-            buf,
-            key,
-            BUCKET_RELATORIOS,
-            XLSX_MIME
-        )
-        
-        # Gera URL
-        url = generate_temporary_url(key, BUCKET_RELATORIOS)
-        
-        report_cache[job_id] = {
-            "status": "completed",
-            "progress": 100,
-            "url": url,
-            "key": key
-        }
-        
-        logger.info(f"Relatório {job_id} concluído: {key}")
-        
-    except Exception as e:
-        logger.error(f"Erro ao processar {job_id}: {e}")
-        report_cache[job_id] = {
-            "status": "error",
-            "progress": 0,
-            "error": str(e)
-        }
-
-
-@app.get("/status/selecao-ativos/{job_id}")
-def get_selecao_status(job_id: str):
-    """Consulta status do relatório"""
-    if job_id not in report_cache:
-        raise HTTPException(404, "Job não encontrado")
-    
-    return JSONResponse(report_cache[job_id])
 
 
 # === Relatório Genérico ===
