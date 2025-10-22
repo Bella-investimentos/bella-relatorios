@@ -69,16 +69,6 @@ def draw_back_to_index_button(c: Canvas):
         Border=[0, 0, 0]
     )
 
-# def _classification_for_group(group: str) -> str:
-#     CONS = {"bonds", "reits_cons", "etfs_cons"}
-#     MOD  = {"etfs_mod", "stocks_mod"}
-#     ARJ  = {"etfs_agr", "stocks_arj", "stocks_opp", "smallcaps_arj", "hedge", "crypto"}
-
-#     if group in CONS: return "Conservadores"
-#     if group in MOD:  return "Moderados"
-#     if group in ARJ:  return "Arrojados"
-#     return "Outros"
-
     
 def generate_assembleia_report(
     bonds: list | None = None,
@@ -97,7 +87,7 @@ def generate_assembleia_report(
     custom_range_pages: list | None = None,   
     text_assets: list | None = None,
     fetch_price_fn=None, 
-    toc_symbols: list | None = None,  
+    
     
     
 ) -> BytesIO:
@@ -118,7 +108,7 @@ def generate_assembleia_report(
     monthly_label  = (monthly_label or "").strip()
     custom_range_pages = custom_range_pages or []
     text_assets = text_assets or []
-    toc_symbols = toc_symbols or []
+    
 
 
     # ---------- Doc/Frame básicos ----------
@@ -144,8 +134,11 @@ def generate_assembleia_report(
     
     def onpage_toc_factory(items: list):
         """
-        Desenha uma página (ou mais) de índice, com símbolos e nomes em 2 colunas.
-        items: lista de tuplas (symbol, name) OU dicts com 'symbol'/'name'
+        Desenha uma página (ou mais) de índice categorizado, com headers, subheaders e ativos.
+        items: lista de dicts com:
+            - {"type": "header", "text": "CATEGORIA"}
+            - {"type": "subheader", "text": "Subcategoria"}
+            - {"type": "item", "symbol": "AAPL", "name": "Apple Inc."}
         """
         def _onpage(c: Canvas, _doc):
             # Cria bookmark para o índice (destino dos botões "voltar")
@@ -159,7 +152,7 @@ def generate_assembleia_report(
 
             # Título
             c.setFont("Helvetica-Bold", 24)
-            c.setFillColorRGB(1,1,1)
+            c.setFillColorRGB(1, 1, 1)
             c.drawString(60, 780, "Índice de Ativos")
             
             # Configurações das colunas
@@ -167,54 +160,109 @@ def generate_assembleia_report(
             col2_x = 320       # x da segunda coluna
             y_start = 730      # y inicial
             y_spacing = 22     # espaço entre linhas
-            max_name_length = 22  # caracteres máximos do nome (reduzido para dar espaço ao número)
+            max_name_length = 22  # caracteres máximos do nome
             
             y = y_start
             col = 1  # começar na coluna 1
+            item_num = 0  # contador só para ativos (não conta headers/subheaders)
             
             for idx, it in enumerate(items):
-                # Numeração (começa em 1)
-                num = idx + 1
+                item_type = it.get("type", "item")
                 
-                # Extrai símbolo e nome
-                if isinstance(it, (tuple, list)) and len(it) >= 1:
-                    sym = (it[0] or "").upper()
-                    name = (it[1] if len(it) > 1 else it[0]) or sym
-                elif isinstance(it, dict):
-                    sym = (it.get("symbol") or "").upper()
-                    name = it.get("company_name") or it.get("name") or sym
-                else:
+                # ===== HEADER (categoria principal) =====
+                if item_type == "header":
+                    # Volta para coluna 1 e desce linha se estava na col 2
+                    if col == 2:
+                        y -= y_spacing
+                        col = 1
+                    
+                    # Espaço antes do header (separação visual)
+                    y -= 15
+                    
+                    # Verifica se precisa de nova página
+                    if y < 100:
+                        c.showPage()
+                        try:
+                            c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
+                        except Exception:
+                            pass
+                        c.setFont("Helvetica-Bold", 24)
+                        c.setFillColorRGB(1, 1, 1)
+                        c.drawString(60, 780, "Índice de Ativos (cont.)")
+                        y = y_start
+                        col = 1
+                    
+                    # Desenha o header
+                    c.setFont("Helvetica-Bold", 14)
+                    c.setFillColorRGB(0.2, 0.6, 1)  # azul
+                    c.drawString(col1_x, y, it.get("text", ""))
+                    y -= y_spacing + 5
                     continue
+                
+                # ===== SUBHEADER (subcategoria) =====
+                elif item_type == "subheader":
+                    # Volta para coluna 1 se estava na col 2
+                    if col == 2:
+                        y -= y_spacing
+                        col = 1
+                    
+                    # Verifica se precisa de nova página
+                    if y < 100:
+                        c.showPage()
+                        try:
+                            c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
+                        except Exception:
+                            pass
+                        c.setFont("Helvetica-Bold", 24)
+                        c.setFillColorRGB(1, 1, 1)
+                        c.drawString(60, 780, "Índice de Ativos (cont.)")
+                        y = y_start
+                        col = 1
+                    
+                    # Desenha o subheader (indentado)
+                    c.setFont("Helvetica-Bold", 11)
+                    c.setFillColorRGB(0.7, 0.7, 0.7)  # cinza claro
+                    c.drawString(col1_x + 15, y, it.get("text", ""))
+                    y -= y_spacing
+                    continue
+                
+                # ===== ITEM (ativo) =====
+                item_num += 1  # incrementa numeração
+                
+                # Extrai dados do ativo
+                sym = it.get("symbol", "").upper()
+                name = it.get("name") or it.get("company_name") or sym
+                
                 if not sym:
                     continue
-
+                
                 # Abrevia o nome se necessário
                 if len(name) > max_name_length:
                     name = name[:max_name_length-3] + "..."
                 
-                # Define x baseado na coluna atual
-                x = col1_x if col == 1 else col2_x
+                # Define x baseado na coluna atual (com indentação)
+                x = (col1_x + 30) if col == 1 else (col2_x + 30)
                 
                 # Desenha numeração
-                c.setFont("Helvetica", 11)
-                c.setFillColorRGB(0.8, 0.8, 0.8)  # cinza claro
-                num_str = f"{num}."
+                c.setFont("Helvetica", 10)
+                c.setFillColorRGB(0.6, 0.6, 0.6)  # cinza médio
+                num_str = f"{item_num}."
                 c.drawString(x, y, num_str)
-                num_width = c.stringWidth(num_str, "Helvetica", 11)
+                num_width = c.stringWidth(num_str, "Helvetica", 10)
 
                 # Desenha símbolo (bold)
                 x_sym = x + num_width + 5
-                c.setFont("Helvetica-Bold", 12)
-                c.setFillColorRGB(1,1,1)
+                c.setFont("Helvetica-Bold", 11)
+                c.setFillColorRGB(1, 1, 1)
                 c.drawString(x_sym, y, sym)
-                sym_width = c.stringWidth(sym, "Helvetica-Bold", 12)
+                sym_width = c.stringWidth(sym, "Helvetica-Bold", 11)
 
                 # Nome ao lado do símbolo
-                c.setFont("Helvetica", 11)
+                c.setFont("Helvetica", 10)
                 c.drawString(x_sym + sym_width + 5, y, f"- {name}")
                 
                 # Cria área clicável
-                total_width = num_width + 5 + sym_width + 5 + c.stringWidth(f"- {name}", "Helvetica", 11)
+                total_width = num_width + 5 + sym_width + 5 + c.stringWidth(f"- {name}", "Helvetica", 10)
                 c.linkRect(
                     "",
                     destinationname=sym,
@@ -230,7 +278,7 @@ def generate_assembleia_report(
                     col = 1
                     y -= y_spacing  # só desce linha quando termina as 2 colunas
                 
-                # Verifica se precisa de nova página (aproximadamente 30 linhas = 60 itens)
+                # Verifica se precisa de nova página
                 if y < 80 and idx < len(items) - 1:
                     c.showPage()
                     # Refaz o fundo e título na nova página
@@ -239,13 +287,160 @@ def generate_assembleia_report(
                     except Exception:
                         pass
                     c.setFont("Helvetica-Bold", 24)
-                    c.setFillColorRGB(1,1,1)
+                    c.setFillColorRGB(1, 1, 1)
                     c.drawString(60, 780, "Índice de Ativos (cont.)")
                     y = y_start
                     col = 1
-                
+        
         return _onpage
+
+
+    # ===== MONTAGEM DOS DADOS DO ÍNDICE =====
+    def build_toc_data(bonds, reits_cons, etfs_cons, etfs_mod, stocks_mod, 
+                    etfs_agr, stocks_arj, stocks_opp, smallcaps_arj, hedge, crypto):
+        """
+        Monta a estrutura de dados categorizada para o índice.
+        Retorna lista de dicts com type: header/subheader/item
+        """
+        toc_data = []
+        
+        # PERFIL CONSERVADOR
+        has_conservador = bonds or reits_cons or etfs_cons
+        if has_conservador:
+            toc_data.append({"type": "header", "text": "PERFIL CONSERVADOR"})
+            
+            if bonds:
+                toc_data.append({"type": "subheader", "text": "Bonds"})
+                for b in bonds:
+                    # Bonds usam "code" em vez de "symbol"
+                    bond_id = b.get("code") or b.get("symbol")
+                    if bond_id:
+                        toc_data.append({
+                            "type": "item",
+                            "symbol": bond_id,
+                            "name": b.get("company") or b.get("name") or bond_id
+                        })
+                    
+            if reits_cons:
+                toc_data.append({"type": "subheader", "text": "REITs Conservadores"})
+                for r in reits_cons:
+                    if r.get("symbol"):
+                        toc_data.append({
+                            "type": "item",
+                            "symbol": r.get("symbol"),
+                            "name": r.get("company_name") or r.get("name") or r.get("symbol")
+                        })
+            
+            if etfs_cons:
+                toc_data.append({"type": "subheader", "text": "ETFs Conservadores"})
+                for e in etfs_cons:
+                    if e.get("symbol"):
+                        toc_data.append({
+                            "type": "item",
+                            "symbol": e.get("symbol"),
+                            "name": e.get("company_name") or e.get("name") or e.get("symbol")
+                        })
+        
+        # PERFIL MODERADO
+        has_moderado = etfs_mod or stocks_mod
+        if has_moderado:
+            toc_data.append({"type": "header", "text": "PERFIL MODERADO"})
+            
+            if etfs_mod:
+                toc_data.append({"type": "subheader", "text": "ETFs Moderados"})
+                for e in etfs_mod:
+                    if e.get("symbol"):
+                        toc_data.append({
+                            "type": "item",
+                            "symbol": e.get("symbol"),
+                            "name": e.get("company_name") or e.get("name") or e.get("symbol")
+                        })
+            
+            if stocks_mod:
+                toc_data.append({"type": "subheader", "text": "Ações Moderadas"})
+                for s in stocks_mod:
+                    if s.get("symbol"):
+                        toc_data.append({
+                            "type": "item",
+                            "symbol": s.get("symbol"),
+                            "name": s.get("company_name") or s.get("name") or s.get("symbol")
+                        })
+        
+        # PERFIL ARROJADO
+        has_arrojado = etfs_agr or stocks_arj
+        if has_arrojado:
+            toc_data.append({"type": "header", "text": "PERFIL ARROJADO"})
+            
+            if etfs_agr:
+                toc_data.append({"type": "subheader", "text": "ETFs Agressivos"})
+                for e in etfs_agr:
+                    if e.get("symbol"):
+                        toc_data.append({
+                            "type": "item",
+                            "symbol": e.get("symbol"),
+                            "name": e.get("company_name") or e.get("name") or e.get("symbol")
+                        })
+            
+            if stocks_arj:
+                toc_data.append({"type": "subheader", "text": "Ações Arrojadas"})
+                for s in stocks_arj:
+                    if s.get("symbol"):
+                        toc_data.append({
+                            "type": "item",
+                            "symbol": s.get("symbol"),
+                            "name": s.get("company_name") or s.get("name") or s.get("symbol")
+                        })
+        
+        # OPORTUNIDADES
+        if stocks_opp:
+            toc_data.append({"type": "header", "text": "OPORTUNIDADES"})
+            for s in stocks_opp:
+                if s.get("symbol"):
+                    toc_data.append({
+                        "type": "item",
+                        "symbol": s.get("symbol"),
+                        "name": s.get("company_name") or s.get("name") or s.get("symbol")
+                    })
+        
+        # SMALL CAPS
+        if smallcaps_arj:
+            toc_data.append({"type": "header", "text": "SMALL CAPS"})
+            for s in smallcaps_arj:
+                if s.get("symbol"):
+                    toc_data.append({
+                        "type": "item",
+                        "symbol": s.get("symbol"),
+                        "name": s.get("company_name") or s.get("name") or s.get("symbol")
+                    })
+        
+        # HEDGE
+        if hedge:
+            toc_data.append({"type": "header", "text": "HEDGE"})
+            for h in hedge:
+                if h.get("symbol"):
+                    toc_data.append({
+                        "type": "item",
+                        "symbol": h.get("symbol"),
+                        "name": h.get("company_name") or h.get("name") or h.get("symbol")
+                    })
+        
+        # CRYPTO
+        if crypto:
+            toc_data.append({"type": "header", "text": "CRYPTO"})
+            for c in crypto:
+                if c.get("symbol"):
+                    toc_data.append({
+                        "type": "item",
+                        "symbol": c.get("symbol"),
+                        "name": c.get("company_name") or c.get("name") or c.get("symbol")
+                    })
+        
+        return toc_data
     
+    toc_data = build_toc_data(
+        bonds, reits_cons, etfs_cons, etfs_mod, stocks_mod,
+        etfs_agr, stocks_arj, stocks_opp, smallcaps_arj, hedge, crypto
+    )
     def paged_onpage_factory(draw_fn, items: list, bg_img: str | None = None):
         state = {"i": 0}
         def _onpage(c: Canvas, _doc):
@@ -430,7 +625,7 @@ def generate_assembleia_report(
     # ---------- Templates FIXOS (capas/perfis/headers) ----------
     
     cover_t      = PageTemplate(id="Capa",                frames=[frame], onPage=onpage_capa_with_date)
-    toc_t = PageTemplate(id="TOC", frames=[frame], onPage=onpage_toc_factory(toc_symbols))
+    toc_t        = PageTemplate(id="TOC",                 frames=[frame], onPage=onpage_toc_factory(toc_data))
     news_t       = PageTemplate(id="Noticias",            frames=[frame], onPage=onpage_noticias)
     perfilcons_t = PageTemplate(id="PerfilConservador",   frames=[frame], onPage=onpage_perfil_cons)
     perfilmod_t  = PageTemplate(id="PerfilModerado",      frames=[frame], onPage=onpage_perfil_mod)
@@ -513,17 +708,12 @@ def generate_assembleia_report(
 
             def make_onpage(bond=b):
                 def _onpage(c: Canvas, _doc):
-                    # bookmark do bond
-                    try:
-                        sym = (bond.get("symbol") or f"BOND_{i}").upper()
-                    except Exception:
-                        sym = f"BOND_{i}"
-                    try:
-                        name = bond.get("name") or bond.get("issuer") or sym
-                    except Exception:
-                        name = sym
-                    c.bookmarkPage(sym)
-                    c.addOutlineEntry(f"{sym} — {name}", sym, level=0, closed=False)
+                    # ✅ Usa "code" como bookmark
+                    sym = bond.get("code") or bond.get("symbol") or f"BOND_{i}"
+                    name = bond.get("company") or bond.get("name") or sym
+                    
+                    c.bookmarkPage(sym.upper())  # ← importante usar o mesmo code!
+                    c.addOutlineEntry(f"{sym} — {name}", sym.upper(), level=0, closed=False)
 
                     draw_bond_page(c, bond)
                     draw_back_to_index_button(c)
@@ -588,13 +778,13 @@ def generate_assembleia_report(
 
     # ---------- Montagem do Story ----------
     Story = []
+   
     # ÍNDICE
-    if toc_symbols:
+    if toc_data:
         Story.append(NextPageTemplate("TOC"))
-        Story.append(Paragraph(" ", styles["Normal"]))  # conteúdo mínimo para disparar o onPage
-        Story.append(PageBreak())                       # encerra a página do índice
+        Story.append(Paragraph(" ", styles["Normal"]))
+        Story.append(PageBreak())
 
-    
     # Notícias
     Story.append(NextPageTemplate("Noticias"))
     Story.append(PageBreak())
@@ -660,7 +850,6 @@ def generate_assembleia_report(
         Story.append(blank)
         add_asset_section(Story, "STK_ARJ", "STK_ARJ_NEWS", stocks_arj)
 
-    
     # Oportunidades
     if stocks_opp:
         Story.append(NextPageTemplate("Oportunidade"))
@@ -682,7 +871,6 @@ def generate_assembleia_report(
         Story.append(blank)
         add_asset_section(Story, "HEDGE", "HEDGE_NEWS", hedge)
 
-    
     # Crypto
     if crypto:
         Story.append(NextPageTemplate("Crypto"))
