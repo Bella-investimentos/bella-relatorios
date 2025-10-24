@@ -105,9 +105,9 @@
       "company": "Comcast Corporation",
       "sector": "Telecomunicações e Mídia",
       "maturity": "15/02/2028",
-      "unit_price": 1084.96,
+      "unit_price": 1086.74,
       "coupon": 7.125,
-      "prev_unit_price": 1081.84,
+      "prev_unit_price": 1073.12,
       "description": [
         "Bond CMCSA Corp 7.125% – Comcast Corporation",
         "Setor: Telecomunicações e Mídia",
@@ -126,7 +126,7 @@
     
     
     {
-      "name": "WM Corp 7.0 Jul15'28",
+      "name": "WM Corp 7.0 Jul15'28 - US902917AH67",
       "code": "US902917AH67",
       "company": "Waste Management Inc.",
       "sector": "Gestão de Resíduos / Serviços Ambientais",
@@ -136,6 +136,7 @@
       "prev_unit_price": 1070.85,
       "description": [
         "Bond WM Corp 7.0% – Waste Management Inc.",
+        "Código - US902917AH67",
         "Setor: Gestão de Resíduos / Serviços Ambientais",
         "Cupom: 7,00% ao ano",
         "Vencimento: 15 de julho de 2028",
@@ -174,5 +175,26 @@
   ]
   "crypto": [
   { "symbol": "BTC-USD", "entry_price": 112.38, "target_price": 124.46 }
+  ],
+
+  "text_assets": [
+    {
+      "symbol": "SPY",
+      "kind": "etf",
+      "text": "O ETF SPY apresentou desempenho sólido..."
+    }]
   ]
 }
+ "custom_ranges": [
+    
+		
+    
+		
+   
+		
+    { "symbol": "FTNT",  "start_date": "2025-09-19", "end_date": "2025-10-17" },
+
+    { "symbol": "WAB",   "start_date": "2025-10-10", "end_date": "2025-10-17" },
+    { "symbol": "CPAY",  "start_date": "2025-10-10", "end_date": "2025-10-17" },
+    { "symbol": "ZS",    "start_date": "2025-09-19", "end_date": "2025-10-17" }
+  ]

@@ -2,6 +2,13 @@
 
 import logging
 import json, os
+import requests
+from datetime import datetime, date
+from calendar import monthrange
+try:
+    from zoneinfo import ZoneInfo  # Python 3.9+
+except Exception:
+    ZoneInfo = None
 
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -257,6 +264,97 @@ def fill_auto_notes(payload: dict, *, max_notes: int | None = None) -> dict:
 
     return payload
 
+# === AUTO-EARNINGS (busca FMP no mês corrente) ===============================
+FMP_API_KEY = os.getenv("FMP_API_KEY")
+
+# ETFs/ETNs/Cripto que NÃO têm balanço (ajuste conforme sua lista)
+_NO_EARNINGS = {
+    "SPY","QQQ","DIA","XLY","VGT","IYW","IGV","IWM","XLI","FCOM","FDIS","VFH",
+    "JEPI","JEPQ","ARKQ","AIQ","ARTY","THNQ","WTAI","QTUM",
+    "SGOV","TBIL","TFLO","BIL","SHV","USFR","ICSH","GBIL",
+    "UUP","UDN","VXX",
+    "BTC","BTC-USD","BTCUSD",
+}
+
+def _now_sp():
+    if ZoneInfo:
+        return datetime.now(ZoneInfo("America/Sao_Paulo"))
+    return datetime.now()
+
+def _earning_calendar_month(y: int, m: int) -> list[dict]:
+    """Puxa earnings da FMP para o mês (y,m)."""
+    if not FMP_API_KEY:
+        return []
+    d0 = date(y, m, 1).isoformat()
+    d1 = date(y, m, monthrange(y, m)[1]).isoformat()
+    url = "https://financialmodelingprep.com/api/v3/earning_calendar"
+    params = {"from": d0, "to": d1, "apikey": FMP_API_KEY}
+    r = requests.get(url, params=params, timeout=20)
+    r.raise_for_status()
+    return r.json() if r.text.strip() else []
+
+def _status_str(raw: str | None) -> str:
+    s = (raw or "").lower()
+    if "confirm" in s:
+        return "confirmado"
+    return "estimado"
+
+def _append_subnote(base: str | None, extra: str) -> str:
+    b = (base or "").strip()
+    if not b:
+        return extra.strip()
+    if extra.strip() in b:
+        return b
+    return b + "\n" + extra.strip()
+
+def append_earnings_notes_auto(enriched_payload: dict, mark_na: bool = True) -> dict:
+    """
+    1) Mantém as notas atuais (payload/notes.json)
+    2) Busca automaticamente o balanço do mês corrente (fuso São Paulo)
+    3) Anexa: '— Balanço: DD/MM (confirmado|estimado)' abaixo da nota existente
+    4) Para ETFs/Cripto/ETNs: opcionalmente marca 'N/A'
+    """
+    now = _now_sp()
+    cal = _earning_calendar_month(now.year, now.month)
+
+    earn_map = {}
+    for it in cal or []:
+        sym = str(it.get("symbol", "")).strip().upper().replace(" ", "")
+        dt = it.get("date") or it.get("dateReported") or it.get("fiscalDateEnding")
+        if not sym or not dt:
+            continue
+        earn_map[sym] = (dt, _status_str(it.get("status") or it.get("time")))
+
+    groups = [
+        "etfs_cons", "etfs_mod", "etfs_agr",
+        "stocks_mod", "stocks_arj", "stocks_opp",
+        "reits_cons", "smallcaps_arj", "crypto", "hedge",
+    ]
+
+    for g in groups:
+        items = enriched_payload.get(g) or []
+        for it in items:
+            sym = str(it.get("symbol","")).strip().upper().replace(" ", "")
+            if not sym:
+                continue
+
+            if sym in _NO_EARNINGS:
+                if mark_na:
+                    it["note"] = _append_subnote(it.get("note"), "— Balanço: N/A (não aplicável)")
+                continue
+
+            pair = earn_map.get(sym)
+            if pair:
+                dt_iso, status = pair
+                y, m, d = dt_iso.split("-")
+                sub = f"— Balanço: {d}/{m} ({status})"
+            else:
+                sub = f"— Balanço: sem data em {now.month:02d}/{now.year}"
+
+            it["note"] = _append_subnote(it.get("note"), sub)
+
+    return enriched_payload
+# ============================================================================ 
 
 
 

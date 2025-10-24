@@ -4,11 +4,11 @@ from io import BytesIO
 import logging
 
 
-from .assembleia.prep import enrich_payload_with_make_report, fill_auto_notes
+from .assembleia.prep import enrich_payload_with_make_report, fill_auto_notes, append_earnings_notes_auto
 from .assembleia.builder import generate_assembleia_report
 from src.services.s3.aws_s3_service import upload_pdf_to_s3
 from src.services.carteiras.assembleia.constants import NOME_RELATORIO_ASSEMBLEIA, BUCKET_RELATORIOS
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import os, requests
 
 logger = logging.getLogger(__name__)
@@ -62,36 +62,74 @@ def _collect_all_items(enriched: dict) -> list[dict]:
             out.append(it)
     return out
 
-def build_monthly_rows(enriched: dict) -> tuple[list[dict], str]:
-    from datetime import timedelta  # ← import local para não alterar outros arquivos
+#buscando valores para cards do relatório mensal
+def _find_last_available_close(symbol: str, ref_date: date, max_lookback: int = 7) -> tuple[float | None, date | None]:
+    """
+    Tenta pegar o close em ref_date. Se não houver (feriado/fds/sem dado),
+    volta 1 dia por vez até max_lookback dias. Retorna (preco, data_efetiva).
+    """
+    d = ref_date
+    for _ in range(max_lookback + 1):
+        price = _fetch_close_price(symbol, d)
+        if price not in (None, 0):
+            return price, d
+        d = d - timedelta(days=1)
+    return None, None
+
+
+def _parse_front_date(d) -> date | None:
+    """Aceita date ou string (YYYY-MM-DD ou DD/MM/YYYY). Retorna date ou None."""
+    if d is None:
+        return None
+    if isinstance(d, date):
+        return d
+    if isinstance(d, str):
+        d = d.strip()
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"):
+            try:
+                return datetime.strptime(d, fmt).date()
+            except ValueError:
+                pass
+    return None
+#montando os cards mensais
+def build_monthly_rows(
+    enriched: dict,
+    *,
+    first_week_date=None,   # data vem do front; pode ser quinta, sexta, etc.
+) -> tuple[list[dict], str]:
+    """
+    Monta os cards usando a data de 1ª semana vinda do front.
+    - Se 'first_week_date' não vier/parsear: NÃO monta (rows=[]).
+    - Se a data não tiver pregão, busca o último dia com fechamento anterior.
+    """
+    from datetime import date
+
+    rows: list[dict] = []
     today = date.today()
-    four_weeks_ago = today - timedelta(weeks=4)  # ← 4 semanas atrás (28 dias)
-    # Você pode usar _last_friday(today) se quiser comparar com a última sexta;
-    # como você quer o preço ATUAL no card, usaremos o unit_price do item.
     label = f"{today:%B/%Y}".title()
 
-    rows = []
-    # --- placeholders para BONDS: 6 linhas vazias, em azul ---
+    ref_date = _parse_front_date(first_week_date)
+    if ref_date is None:
+        logger.warning("first_week_date ausente ou inválida. Nenhum card será gerado.")
+        return [], label
     for _ in range(6):
         rows.append({
-            "symbol": "",              # vazio → você preenche manualmente depois
-            "company_name": "",
-            "p0": None,
-            "p1": None,
-            "chg": None,
-            "group": "bonds",          # importante p/ colorir azul
-            "placeholder_bond": True,  # flag p/ o renderer saber que é vazio
+            "symbol": "", "company_name": "",
+            "p0": None, "p1": None, "chg": None,
+            "group": "bonds", "placeholder_bond": True,
         })
     for it in _collect_all_items(enriched):
-        sym = (it.get("symbol") or "").upper()
+        sym  = (it.get("symbol") or "").upper()
         name = it.get("company_name") or it.get("name") or sym
         group = _group_of_symbol(enriched, sym)
         color = _rgb_for_group(group)
-        p_first = _fetch_close_price(sym, four_weeks_ago)  # ← usa 4 semanas atrás
-        p_now   = it.get("unit_price")  # já vem do enrich
-        chg = None
-        if p_first not in (None, 0) and p_now not in (None, 0):
-            chg = ((float(p_now)/float(p_first))-1.0)*100.0
+
+        # ← usa EXATAMENTE a data enviada; se não houver fechamento, volta dias
+        p_first, p0_used_date = _find_last_available_close(sym, ref_date)
+
+        p_now = it.get("unit_price")
+        chg = ((float(p_now)/float(p_first))-1.0)*100.0 if p_first not in (None,0) and p_now not in (None,0) else None
+
         rows.append({
             "symbol": sym,
             "company_name": name,
@@ -99,12 +137,13 @@ def build_monthly_rows(enriched: dict) -> tuple[list[dict], str]:
             "p1": p_now,
             "chg": chg,
             "group": group,
-            "color": color,  # (r,g,b) em 0..1
-        }),
-        
+            "color": color,
+            "p0_date": p0_used_date or ref_date,   # data efetivamente usada (pode ser a quinta, ou quarta, etc.)
+        })
 
     return rows, label
 
+ 
 # === abaixo das helpers já existentes ===
 def _group_of_symbol(enriched: dict, sym: str) -> str:
     buckets = [
@@ -121,6 +160,16 @@ def _group_of_symbol(enriched: dict, sym: str) -> str:
                 return name
     return ""
 
+def _classification_for_group(group: str) -> str:
+    CONS = {"bonds", "reits_cons", "etfs_cons"}
+    MOD  = {"etfs_mod", "stocks_mod"}
+    ARJ  = {"etfs_agr", "stocks_arj", "stocks_opp", "smallcaps_arj", "hedge", "crypto"}
+    if group in CONS: return "Conservadores"
+    if group in MOD:  return "Moderados"
+    if group in ARJ:  return "Arrojados"
+    return "Outros"
+
+
 def _rgb_for_group(group: str) -> tuple[float, float, float]:
     # azul
     if group in ("bonds", "reits_cons", "etfs_cons"):
@@ -132,11 +181,18 @@ def _rgb_for_group(group: str) -> tuple[float, float, float]:
     return (1.0, 1.0, 0.0)
 
 
+
+
 def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbol: Optional[str] = None) -> BytesIO:
     
     enriched = enrich_payload_with_make_report(payload)
     enriched = fill_auto_notes(enriched)  
-    monthly_rows, monthly_label = build_monthly_rows(enriched)
+    append_earnings_notes_auto(enriched)
+
+    monthly_rows, monthly_label = build_monthly_rows(
+    enriched,
+    first_week_date=payload.get("first_week_date") if isinstance(payload, dict) else getattr(payload, "first_week_date", None),
+)
 
     # 2) Extrair listas para o builder
     bonds          = enriched.get("bonds", []) or []
@@ -151,7 +207,17 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
     crypto         = enriched.get("crypto", []) or []
     hedge          = enriched.get("hedge", []) or []
 
-     
+    custom_ranges = []
+    if hasattr(payload, 'custom_ranges') and payload.custom_ranges:
+        custom_ranges = [cr.model_dump() if hasattr(cr, 'model_dump') else cr for cr in payload.custom_ranges]
+    elif isinstance(payload, dict) and payload.get('custom_ranges'):
+        custom_ranges = payload['custom_ranges']
+        
+    text_assets = []
+    if hasattr(payload, 'text_assets') and payload.text_assets:
+        text_assets = [ta.model_dump() if hasattr(ta, 'model_dump') else ta for ta in payload.text_assets]
+    elif isinstance(payload, dict) and payload.get('text_assets'):
+        text_assets = payload['text_assets']
 
     logger.info(
         "[ASSEMBLEIA] pós-prep: bonds=%d, etfs_cons=%d, etfs_mod=%d, etfs_agr=%d, "
@@ -162,14 +228,16 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         len(reits_cons), len(smallcaps_arj), len(crypto), len(hedge),
         len(monthly_rows),
     )
-
+    
     # 3) Montar PDF
     buffer = generate_assembleia_report(
         bonds=bonds,
         etfs_cons=etfs_cons, etfs_mod=etfs_mod, etfs_agr=etfs_agr,
         stocks_mod=stocks_mod, stocks_arj=stocks_arj, stocks_opp=stocks_opp,
         reits_cons=reits_cons, smallcaps_arj=smallcaps_arj, crypto=crypto, hedge=hedge,
-        monthly_rows=monthly_rows, monthly_label=monthly_label,
+        monthly_rows=monthly_rows, monthly_label=monthly_label, custom_range_pages=custom_ranges,
+        text_assets=text_assets,
+        fetch_price_fn=_fetch_close_price, 
     )
 
     # 4) Upload (opcional) e retorno

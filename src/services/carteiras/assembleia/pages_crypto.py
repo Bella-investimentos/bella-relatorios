@@ -6,7 +6,7 @@ from reportlab.lib.pagesizes import A4
 from .utils import JUSTIFIED_WHITE, draw_label_value_centered
 from .constants import MINI_R, MINI_LBL, MINI_VAL, BIG_LBL, BIG_VAL, MINI_PAD
 from .constants import img_path, ETF_PAGE_BG_IMG
-from .utils import fmt_currency_usd, fmt_pct, wrap_and_draw, draw_centered_in_box, draw_justified_paragraph, JUSTIFIED_WHITE
+from .utils import fmt_currency_usd, fmt_pct, wrap_and_draw, draw_centered_in_box, draw_justified_paragraph,draw_asset_logo_rounded, JUSTIFIED_WHITE
 
 # -----------------------------
 # Normalização do payload
@@ -29,7 +29,7 @@ def normalize_crypto(d: dict) -> dict:
 # -----------------------------
 CRP_SPEC = {
     "bg": ETF_PAGE_BG_IMG,
-    "logo":     {"x": 60,  "y": 700, "w": 60, "h": 60},
+    "logo":     {"x": 60,  "y": 680, "w": 75,  "h": 75},
     "title":    {"x": 140, "y": 720, "w": 420, "lh": 30, "font": ("Helvetica-Bold", 26), "max_lines": 1},
     "subtitle": {"x": 140, "y": 680, "font": ("Helvetica-Bold", 15), "rgb": (0.15, 0.70, 0.55)},
 
@@ -59,13 +59,22 @@ def draw_crypto_page(c: Canvas, payload: dict):
 
     d = normalize_crypto(payload)
 
-    # logo
-    if d.get("logo_path"):
-        try:
-            c.drawImage(d["logo_path"], spec["logo"]["x"], spec["logo"]["y"],
-                        width=spec["logo"]["w"], height=spec["logo"]["h"], mask='auto')
-        except Exception:
-            pass
+    # logo (opcional)
+    try:
+        drew = draw_asset_logo_rounded(
+            c, d,
+            spec["logo"]["x"], spec["logo"]["y"],
+            spec["logo"]["w"], spec["logo"]["h"],
+            radius=8,         # ajuste o raio que preferir
+            draw_stroke=True,  # desenha uma bordinha
+            stroke_width=1.0
+        )
+        #opcional: se quiser um placeholder quando não houver logo:
+        if not drew:
+            c.setFillColorRGB(0.9, 0.9, 0.9)
+            c.rect(spec["logo"]["x"], spec["logo"]["y"], spec["logo"]["w"], spec["logo"]["h"], stroke=0, fill=1)
+    except Exception as e:
+        print(f"[bond] logo: {e}")
 
     # título
     c.setFillColorRGB(1, 1, 1)
@@ -158,9 +167,7 @@ def draw_crypto_page(c: Canvas, payload: dict):
                         preserveAspectRatio=True, anchor='c')
         except Exception:
             pass
-    if g.get("border"):
-        c.setFillColorRGB(1, 1, 1); c.setLineWidth(1.2)
-        c.roundRect(g["x"], g["y"], g["w"], g["h"], 8, stroke=1, fill=0)
+    
 
     # ----- nota -----
     n = spec["note"]

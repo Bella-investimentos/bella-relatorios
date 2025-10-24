@@ -28,16 +28,20 @@ def is_safe_path(base_path: str, file_path: str) -> bool:
 def generate_pdf_buffer(
     investor: str,
     bonds: list = None,
+    reits: list = None,
     stocks: list = None,
     etfs: list = None,
     etfs_op: list = None,
     etfs_af: list = None,
+    hedge: list = None,
     opp_stocks: list = None,
     cryptos: list = None,
-    real_estates: list = None
+    real_estates: list = None,
+    liquidity_value: float = 0.0
 ):
     
     bonds = bonds or []
+    reits = reits or []
     stocks = stocks or []
     etfs = etfs or []
     etfs_op = etfs_op or []
@@ -45,7 +49,7 @@ def generate_pdf_buffer(
     opp_stocks = opp_stocks or []
     cryptos = cryptos or []
     real_estates = real_estates or []
-
+    hedge = hedge or []
     buffer = BytesIO()
     
     styles = getSampleStyleSheet()
@@ -204,6 +208,21 @@ def generate_pdf_buffer(
             if description and isinstance(description, list):
                 desc_text = '<br/>'.join(description)
                 data_rows.append(['Descrição:', Paragraph(desc_text, styles['AssetDetail'])])
+        elif asset_type == 'reits':
+            growth_pct = get_growth_pct(item)
+            data_rows = [
+                ['Setor:', item.get('sector', 'Real Estate')],
+                ['Valor Atual:', format_value(item.get('unit_price'))],
+                ['Entrada (EMA 10):', format_value(item.get('ema_10'))],
+                ['Entrada (EMA 20):', format_value(item.get('ema_20'))],
+                ['Score:', str(item.get('score', '–'))],
+                ['Meta (Saída):', format_value(item.get('target_price'))],
+                ['Dividend Yield:', format_value(item.get('dividend_yield', 0), is_percentage=True)],
+                ['Quantidade:', str(item.get('quantity', '–'))],
+                ['Investimento:', format_value(item.get('investment'))],
+                ['Potencial Valorização:', format_value(growth_pct, is_percentage=True) if growth_pct else '–'],
+            ]
+
         elif asset_type == 'stocks' or asset_type == 'opp_stocks':
             growth_pct = get_growth_pct(item)
             data_rows = [
@@ -218,7 +237,7 @@ def generate_pdf_buffer(
                 ['Investimento:', format_value(item.get('investment'))],
                 ['Potencial Valorização:', format_value(growth_pct, is_percentage=True) if growth_pct else '–'],
             ]
-        elif 'etf' in asset_type:
+        elif asset_type in ['etfs', 'etfs_op', 'etfs_af', 'hedge'] or 'etf' in asset_type:
             entry_field = 'antifragile_entry_price' if 'af' in asset_type else 'ema_20'
             entry_label = 'Entrada (Anti-Frágil):' if 'af' in asset_type else 'Entrada (EMA 20):'
             data_rows = [
@@ -229,6 +248,7 @@ def generate_pdf_buffer(
                 ['Investimento:', format_value(item.get('investment'))],
                 ['Crescimento Médio Anual:', format_value(item.get('average_growth', 0), is_percentage=True)],
             ]
+
         elif asset_type == 'cryptos':
             quantity_text = f"{item.get('quantity', 0):.8f}".rstrip('0').rstrip('.') if item.get('quantity') is not None else '–'
             data_rows = [
@@ -262,12 +282,27 @@ def generate_pdf_buffer(
             dividend_yield_text = format_value(item.get('dividend_yield', 0), is_percentage=True)
             
             analysis = f"""A ação <b>{symbol}</b> do setor <b>{sector}</b> tem entrada recomendada 
-                          para um perfil moderado em <b>{ema_20}</b> e entrada recomendada para 
-                          um perfil agressivo em <b>{ema_10}.</b> Com expectativa de atingir <b>{target_price}</b>. 
-                          Dividend yield anual de <b>{dividend_yield_text}</b>."""
+                        para um perfil moderado em <b>{ema_20}</b> e entrada recomendada para 
+                        um perfil agressivo em <b>{ema_10}.</b> Com expectativa de atingir <b>{target_price}</b>. 
+                        Dividend yield anual de <b>{dividend_yield_text}</b>."""
             
             card_elements.append(Paragraph(analysis, styles['AssetDetail']))
-            card_elements.append(Spacer(1, 20))  # 20px após a análise
+            card_elements.append(Spacer(1, 20))
+
+        elif asset_type == 'reits':
+            sector = item.get('sector', 'Real Estate')
+            ema_10 = format_value(item.get('ema_10'))
+            ema_20 = format_value(item.get('ema_20'))
+            target_price = format_value(item.get('target_price'))
+            dividend_yield_text = format_value(item.get('dividend_yield', 0), is_percentage=True)
+            
+            analysis = f"""O REIT <b>{symbol}</b> do setor <b>{sector}</b> tem entrada recomendada 
+                        para um perfil moderado em <b>{ema_20}</b> e entrada recomendada para 
+                        um perfil agressivo em <b>{ema_10}.</b> Com expectativa de atingir <b>{target_price}</b>. 
+                        Distribuição anual de dividendos de <b>{dividend_yield_text}</b>."""
+            
+            card_elements.append(Paragraph(analysis, styles['AssetDetail']))
+            card_elements.append(Spacer(1, 20))
 
         chart_path = item.get('chart')
         if chart_path and is_safe_path('.', chart_path) and os.path.exists(chart_path):
@@ -298,10 +333,10 @@ def generate_pdf_buffer(
             elements.append(card_group)
 
     total_value = (
-        calculate_total(bonds) + calculate_total(stocks) + calculate_total(etfs) +
+        calculate_total(bonds) + calculate_total(stocks) + calculate_total(etfs)  +
         calculate_total(etfs_op) + calculate_total(etfs_af) +
         calculate_total(opp_stocks) + calculate_total(cryptos) +
-        calculate_total(real_estates)
+        calculate_total(real_estates) + calculate_total(reits) + calculate_total(hedge) + (liquidity_value or 0.0)
     )
 
     elements = []
@@ -339,6 +374,10 @@ def generate_pdf_buffer(
         add_asset_section(elements, '💰 Títulos de Renda Fixa (Bonds)', calculate_total(bonds), bonds, 'bonds')
         elements.append(PageBreak())
 
+    if reits:
+        add_asset_section(elements, '🏢 REITs', calculate_total(reits), reits, 'reits')
+        elements.append(PageBreak())
+
     if stocks:
         add_asset_section(elements, '📈 Ações', calculate_total(stocks), stocks, 'stocks')
         elements.append(PageBreak())
@@ -358,13 +397,51 @@ def generate_pdf_buffer(
     if etfs_af:
         add_asset_section(elements, '🛡️ ETFs Anti-Frágil', calculate_total(etfs_af), etfs_af, 'etfs_af')
         elements.append(PageBreak())
+        
+    if hedge:
+        add_asset_section(elements, '🛡️ Hedge', calculate_total(hedge), hedge, 'hedge')
+        elements.append(PageBreak())
 
     if cryptos:
         add_asset_section(elements, '₿ Criptomoedas', calculate_total(cryptos), cryptos, 'cryptos')
-        
+        elements.append(PageBreak())
 
     if real_estates:
         add_asset_section(elements, '🏠 Imóveis', calculate_total(real_estates), real_estates, 'real_estates')
+       
+        # ---- Seção própria de Liquidez (valor único) ----
+    if liquidity_value and liquidity_value > 0:
+        elements.append(Paragraph('💧 Liquidez', styles['SectionTitle']))
+
+        # destaque com o valor de liquidez
+        elements.append(Paragraph(f"<b>Total de Liquidez: {format_value(liquidity_value)}</b>", styles['HighlightBox']))
+
+        # tabelinha 'Liquidez | Valor' com uma linha só
+        
+        data = [["Liquidez", "Valor"], ["Disponível", format_value(liquidity_value)]]
+        t = Table(data, colWidths=[3.0*inch, 3.0*inch], hAlign="CENTER", repeatRows=1)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#EAF2FF")),
+            ("TEXTCOLOR",  (0,0), (-1,0), colors.HexColor("#0F2B5B")),
+            ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE",   (0,0), (-1,0), 10),
+            ("ALIGN",      (0,0), (-1,0), "CENTER"),
+            ("FONTNAME",   (0,1), (-1,-1), "Helvetica"),
+            ("FONTSIZE",   (0,1), (-1,-1), 9),
+            ("ALIGN",      (1,1), (1,-1), "RIGHT"),
+            ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
+            ("BOX",        (0,0), (-1,-1), 0.5, colors.HexColor("#D9E4F5")),
+            ("INNERGRID",  (0,0), (-1,-1), 0.25, colors.HexColor("#D9E4F5")),
+            ("LEFTPADDING",(0,0), (-1,-1), 6),
+            ("RIGHTPADDING",(0,0),(-1,-1), 6),
+            ("TOPPADDING", (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING",(0,0),(-1,-1), 4),
+        ]))
+        elements.append(t)
+        elements.append(Spacer(1, 6))
+
+        elements.append(PageBreak())
+
 
     doc = SimpleDocTemplate(buffer, pagesize=letter,
                             rightMargin=0.7*inch, leftMargin=0.7*inch,
