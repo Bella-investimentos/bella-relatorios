@@ -40,7 +40,7 @@ report_cache: Dict[str, Dict[str, Any]] = {}
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "message": "API v1.4.0 - Optimized"}
+    return {"status": "healthy", "message": "API v1.4.1 - Optimized"}
 
 
 # === Assembleia ===
