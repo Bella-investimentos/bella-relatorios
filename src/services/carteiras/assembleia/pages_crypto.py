@@ -80,7 +80,7 @@ def draw_crypto_page(c: Canvas, payload: dict):
     c.setFillColorRGB(1, 1, 1)
     wrap_and_draw(
         c,
-        f'{d.get("company_name","")} ({d.get("symbol","")})',
+        f'({d.get("symbol","")}) {d.get("company_name","")}',
         spec["title"]["x"], spec["title"]["y"],
         spec["title"]["w"], spec["title"]["lh"],
         spec["title"]["font"], spec["title"]["max_lines"]
