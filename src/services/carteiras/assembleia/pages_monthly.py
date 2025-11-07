@@ -3,9 +3,7 @@ from __future__ import annotations
 from typing import Dict, Any, List,  Optional
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.lib.pagesizes import A4
-
 from datetime import datetime, date
-
 from .constants import img_path, ETF_PAGE_BG_IMG, BIG_LBL, BIG_VAL, MINI_R
 from .utils import draw_label_value_centered, fmt_currency_usd
 
@@ -33,8 +31,6 @@ def draw_monthly_cards_page(c: Canvas, page: Dict[str, Any]):
     rows: List[Dict[str, Any]] = page.get("rows") or []
     label: str = page.get("label") or ""
     
-    print(f"[DEBUG] draw_monthly_cards_page: {len(rows)} rows")
-
     w, h = A4
     
     # Fundo
@@ -79,7 +75,6 @@ def draw_monthly_cards_page(c: Canvas, page: Dict[str, Any]):
     y = top
     count = 0
     
-    # SUBSTITUA o loop principal por esta versão que usa a função _card original:
 
     for r in rows:
         if count >= max_rows:
@@ -114,7 +109,6 @@ def draw_monthly_cards_page(c: Canvas, page: Dict[str, Any]):
         y -= (row_h + gap_y)
         count += 1
 
-# ADICIONE esta função nova no final do arquivo pages_monthly.py:
 
 def _card_with_color(c: Canvas, x, y, w, h, label: str, value: str, label_font_size: int, value_font_size: int, color_rgb: tuple):
     """Card com cor personalizada para borda e texto"""

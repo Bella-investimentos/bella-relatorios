@@ -516,10 +516,9 @@ def generate_assembleia_report(
         Returns:
             Lista de páginas, cada uma com estrutura {"label": str, "rows": list}
         """
-        print(f"[DEBUG] paginate_monthly: recebeu {len(rows)} rows, per_page={per_page}, label='{label}'")
         
         if not rows:
-            print("[DEBUG] Sem rows, criando página vazia")
+            
             return [{"label": label, "rows": []}]
         
         pages = []
@@ -528,17 +527,13 @@ def generate_assembleia_report(
         for i in range(0, total_rows, per_page):
             chunk = rows[i:i + per_page]
             page_num = (i // per_page) + 1
-            total_pages = (total_rows + per_page - 1) // per_page  # ceil division
+            total_pages = (total_rows + per_page - 1) // per_page  
             
             pages.append({
                 "label": label,
                 "rows": chunk,
-                "page_info": f"{page_num}/{total_pages}"  # info extra para debug
-            })
-            
-            print(f"[DEBUG] Página {page_num}/{total_pages} criada com {len(chunk)} rows")
-        
-        print(f"[DEBUG] Total de {len(pages)} páginas criadas")
+                "page_info": f"{page_num}/{total_pages}"  
+            })        
         return pages
 
     _monthly_pages = paginate_monthly(monthly_rows, per_page=8, label=monthly_label)
@@ -553,15 +548,13 @@ def generate_assembleia_report(
         
         def make_monthly_onpage(page=page_data, page_num=i):
             def _onpage(c: Canvas, _doc):
-                print(f"[DEBUG] Template {template_id} - Desenhando página {page_num} com {len(page.get('rows', []))} rows")
                 draw_monthly_cards_page(c, page)
                 draw_back_to_index_button(c)
             return _onpage
         
         template = PageTemplate(id=template_id, frames=[frame], onPage=make_monthly_onpage())
         monthly_templates.append(template)
-        print(f"[DEBUG] Criado template {template_id} para página {i}")
-        
+                
     def custom_range_onpage_factory(items: list, fetch_price_fn):
         """Factory que cria função onPage para desenhar custom ranges"""
         def _onpage(c: Canvas, _doc):
