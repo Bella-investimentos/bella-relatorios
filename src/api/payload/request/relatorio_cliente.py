@@ -43,6 +43,7 @@ class ClienteRelatorioPayload(BaseModel):
     stocks: List[EquityIn] = Field(default_factory=list)
     opp_stocks: List[EquityIn] = Field(default_factory=list)
     etfs: List[EquityIn] = Field(default_factory=list)
+    etfs_rf: List[EquityIn] = Field(default_factory=list)
     etfs_op: List[EquityIn] = Field(default_factory=list)
     etfs_af: List[EquityIn] = Field(default_factory=list)
     hedge: List[EquityIn] = Field(default_factory=list)

@@ -840,7 +840,7 @@ def build_report_from_payload(payload: Dict[str, Any]) -> BytesIO:
     Consome o payload canônico do front e gera HTML+PDF.
     Retorna caminho do PDF gerado.
     Espera chaves:
-      investor (str), bonds[], stocks[], opp_stocks[], etfs[], etfs_op[], etfs_af[], cryptos[], real_estates[]
+      investor (str), bonds[], stocks[], opp_stocks[], etfs[],etfs_rf[], etfs_op[], etfs_af[], cryptos[], real_estates[]
     """
     investor = payload.get("investor") or "Investidor"
 
@@ -901,6 +901,7 @@ def build_report_from_payload(payload: Dict[str, Any]) -> BytesIO:
     stocks = _mk_equities(payload.get("stocks"), is_etf=False)
     opp_stocks = _mk_equities(payload.get("opp_stocks"), is_etf=False)
     etfs = _mk_equities(payload.get("etfs"), is_etf=True)
+    etfs_rf = _mk_equities(payload.get("etfs_rf"), is_etf=True)
     etfs_op = _mk_equities(payload.get("etfs_op"), is_etf=True)
     etfs_af = _mk_equities(payload.get("etfs_af"), is_etf=True, antifragile=True)
     hedge = _mk_equities(payload.get("hedge"), is_etf=True)
@@ -942,6 +943,7 @@ def build_report_from_payload(payload: Dict[str, Any]) -> BytesIO:
         reits=reits,
         stocks=stocks,
         etfs=etfs,
+        etfs_rf=etfs_rf,
         etfs_op=etfs_op,
         etfs_af=etfs_af,
         opp_stocks=opp_stocks,

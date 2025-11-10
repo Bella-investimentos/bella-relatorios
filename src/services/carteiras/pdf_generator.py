@@ -31,6 +31,7 @@ def generate_pdf_buffer(
     reits: list = None,
     stocks: list = None,
     etfs: list = None,
+    etfs_rf: list = None,
     etfs_op: list = None,
     etfs_af: list = None,
     hedge: list = None,
@@ -44,6 +45,7 @@ def generate_pdf_buffer(
     reits = reits or []
     stocks = stocks or []
     etfs = etfs or []
+    etfs_rf = etfs_rf or []
     etfs_op = etfs_op or []
     etfs_af = etfs_af or []
     opp_stocks = opp_stocks or []
@@ -237,7 +239,7 @@ def generate_pdf_buffer(
                 ['Investimento:', format_value(item.get('investment'))],
                 ['Potencial Valorização:', format_value(growth_pct, is_percentage=True) if growth_pct else '–'],
             ]
-        elif asset_type in ['etfs', 'etfs_op', 'etfs_af', 'hedge'] or 'etf' in asset_type:
+        elif asset_type in ['etfs', 'etfs_rf', 'etfs_op', 'etfs_af', 'hedge'] or 'etf' in asset_type:
             entry_field = 'antifragile_entry_price' if 'af' in asset_type else 'ema_20'
             entry_label = 'Entrada (Anti-Frágil):' if 'af' in asset_type else 'Entrada (EMA 20):'
             data_rows = [
@@ -334,7 +336,7 @@ def generate_pdf_buffer(
 
     total_value = (
         calculate_total(bonds) + calculate_total(stocks) + calculate_total(etfs)  +
-        calculate_total(etfs_op) + calculate_total(etfs_af) +
+        calculate_total(etfs_rf) + calculate_total(etfs_op) + calculate_total(etfs_af) +
         calculate_total(opp_stocks) + calculate_total(cryptos) +
         calculate_total(real_estates) + calculate_total(reits) + calculate_total(hedge) + (liquidity_value or 0.0)
     )
@@ -389,7 +391,11 @@ def generate_pdf_buffer(
     if etfs:
         add_asset_section(elements, '📊 ETFs', calculate_total(etfs), etfs, 'etfs')
         elements.append(PageBreak())
-
+        
+    if etfs_rf:
+        add_asset_section(elements, '� ETFs Renda Fixa', calculate_total(etfs_rf), etfs_rf, 'etfs_rf')
+        elements.append(PageBreak())
+        
     if etfs_op:
         add_asset_section(elements, '🚀 ETFs de Oportunidade', calculate_total(etfs_op), etfs_op, 'etfs_op')
         elements.append(PageBreak())
