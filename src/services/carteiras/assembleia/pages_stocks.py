@@ -153,7 +153,7 @@ def draw_stock_page(
     c.setFillColorRGB(1,1,1)
     wrap_and_draw(
         c,
-        f'{s.get("company_name","")} ({s.get("symbol","")})',
+        f'({s.get("symbol","")}) {s.get("company_name","")}',
         spec["title"]["x"], spec["title"]["y"],
         spec["title"]["w"], spec["title"]["lh"],
         spec["title"]["font"], spec["title"]["max_lines"]

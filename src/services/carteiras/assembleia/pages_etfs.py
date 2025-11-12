@@ -111,7 +111,7 @@ def draw_etf_page(c: Canvas, etf: dict, *, kind_label: str = "ETF"):
     # ----- TÍTULO / SUBTÍTULO
     c.setFillColorRGB(1, 1, 1)
     wrap_and_draw(
-        c, f'{e.get("company_name","")} ({e.get("symbol","")})',
+        c, f'({e.get("symbol","")}) {e.get("company_name","")}',
         spec["title"]["x"], spec["title"]["y"],
         spec["title"]["w"], spec["title"]["lh"],
         spec["title"]["font"], spec["title"]["max_lines"]

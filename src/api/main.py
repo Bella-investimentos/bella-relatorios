@@ -40,7 +40,7 @@ report_cache: Dict[str, Dict[str, Any]] = {}
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "message": "API v1.4.0 - Optimized"}
+    return {"status": "healthy", "message": "API v1.4.1 - Optimized"}
 
 
 # === Assembleia ===
@@ -60,7 +60,8 @@ async def _generate_and_upload_assembleia(payload: Dict[str, Any], symbol: str |
                 upload_bytes_to_s3,
                 buf,
                 NOME_RELATORIO_ASSEMBLEIA,
-                BUCKET_RELATORIOS
+                BUCKET_RELATORIOS,
+                "application/pdf" 
             )
             logger.info(f"Relatório assembleia gerado: {symbol}")
     except Exception as e:

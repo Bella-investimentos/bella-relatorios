@@ -678,10 +678,9 @@ def generate_assembleia_report(
         Returns:
             Lista de páginas, cada uma com estrutura {"label": str, "rows": list}
         """
-        print(f"[DEBUG] paginate_monthly: recebeu {len(rows)} rows, per_page={per_page}, label='{label}'")
         
         if not rows:
-            print("[DEBUG] Sem rows, criando página vazia")
+            
             return [{"label": label, "rows": []}]
         
         pages = []
@@ -690,17 +689,13 @@ def generate_assembleia_report(
         for i in range(0, total_rows, per_page):
             chunk = rows[i:i + per_page]
             page_num = (i // per_page) + 1
-            total_pages = (total_rows + per_page - 1) // per_page  # ceil division
+            total_pages = (total_rows + per_page - 1) // per_page  
             
             pages.append({
                 "label": label,
                 "rows": chunk,
-                "page_info": f"{page_num}/{total_pages}"  # info extra para debug
-            })
-            
-            print(f"[DEBUG] Página {page_num}/{total_pages} criada com {len(chunk)} rows")
-        
-        print(f"[DEBUG] Total de {len(pages)} páginas criadas")
+                "page_info": f"{page_num}/{total_pages}"  
+            })        
         return pages
 
     _monthly_pages = paginate_monthly(monthly_rows, per_page=8, label=monthly_label)
@@ -715,7 +710,6 @@ def generate_assembleia_report(
         
         def make_monthly_onpage(page=page_data, page_num=i):
             def _onpage(c: Canvas, _doc):
-                print(f"[DEBUG] Template {template_id} - Desenhando página {page_num} com {len(page.get('rows', []))} rows")
                 draw_monthly_cards_page(c, page)
                 draw_back_to_index_button(c)
             return _onpage
@@ -747,6 +741,7 @@ def generate_assembleia_report(
         return None, None
 
 
+                
     def custom_range_onpage_factory(items: list, fetch_price_fn):
         def _onpage(c, _doc):
             if items:
@@ -915,54 +910,98 @@ def generate_assembleia_report(
             
     def add_text_assets(story, items: list):
         """
-        Cria um PageTemplate por item de text_assets e empilha no final.
-        Evita depender de estado compartilhado (state['i']).
+        DEPRECATED: Esta função não é mais necessária.
+        As páginas de text_assets agora são inseridas automaticamente
+        antes dos ativos que elas substituem via add_asset_section_with_exits.
         """
-        if not items:
-            return
-
-        for i, item in enumerate(items):
-            tid = f"TEXT_ASSET_{i}"
-
-            def make_onpage(cur=item):
-                def _onpage(c: Canvas, _doc):
-                    # 1) fundo
-                    try:
-                        onpage_text_asset(c, _doc)
-                    except Exception as e:
-                        print(f"[TEXT_ASSET] fundo: {e}")
-                    # 2) conteúdo do item
-                    try:
-                        draw_text_asset_page(c, cur)
-                    except Exception as e:
-                        print(f"[TEXT_ASSET] item {i} erro: {e}")
-                        # fallback visível
-                        c.setFillColorRGB(1, 1, 1)
-                        c.setFont("Helvetica-Oblique", 11)
-                        c.drawString(60, 80, f"Falha ao renderizar TEXT_ASSET #{i}: {e}")
-                return _onpage
-
-            # registra template específico para ESTE item
-            doc.addPageTemplates([PageTemplate(id=tid, frames=[frame], onPage=make_onpage())])
-
-            # e agenda a página no Story
-            story.append(NextPageTemplate(tid))
-            story.append(PageBreak())
-            story.append(blank)
+        pass  # Mantida vazia para compatibilidade
 
 
-    def add_asset_section(story, tpl_id: str, news_tpl_id: str, items: list):
+    def add_asset_section_with_exits(story, tpl_id: str, news_tpl_id: str, items: list, text_assets: list, doc):
         """
         Alterna: [Ativo] → [News] → [Ativo] … para cada item.
+        Se um ativo substituiu outro (via text_assets.replaces), insere a página de saída ANTES.
+        
+        Args:
+            story: Lista de flowables do ReportLab
+            tpl_id: ID do template do ativo (ex: "ETF_MOD")
+            news_tpl_id: ID do template de notícias (ex: "ETF_MOD_NEWS")
+            items: Lista de ativos desta seção
+            text_assets: Lista com informações dos ativos que saíram
+            doc: Objeto BaseDocTemplate para registrar novos templates
         """
         if not items:
             return
+        
+        # Criar mapa: symbol_que_entrou -> dados_completos_do_asset_que_saiu
+        exit_before_map = {}
+        if text_assets:
+            for item in text_assets:
+                replaces_symbol = (item.get("replaces") or "").strip().upper()
+                if replaces_symbol:
+                    exit_before_map[replaces_symbol] = item
+        
+        # Processar cada ativo
         story.append(NextPageTemplate(tpl_id))
-        for _ in items:
-            story.append(PageBreak()); story.append(blank)          # página do ativo
+        
+        for idx, asset in enumerate(items):
+            asset_symbol = (asset.get("symbol") or "").strip().upper()
+            
+            # VERIFICAR SE ESTE ATIVO SUBSTITUIU OUTRO
+            if asset_symbol in exit_before_map:
+                exit_data = exit_before_map[asset_symbol]
+                
+                # Criar template único para esta página de saída
+                tid = f"TEXT_ASSET_{tpl_id}_{idx}"
+                
+                def make_onpage(cur=exit_data):
+                    def _onpage(c: Canvas, _doc):
+                        # 1) Desenhar fundo (se houver função específica)
+                        try:
+                            onpage_text_asset(c, _doc)
+                        except Exception as e:
+                            print(f"[TEXT_ASSET] fundo: {e}")
+                        
+                        # 2) Desenhar conteúdo da página de saída
+                        try:
+                            draw_text_asset_page(c, cur)
+                        except Exception as e:
+                            print(f"[TEXT_ASSET] erro ao desenhar {cur.get('symbol')}: {e}")
+                            # Fallback visível
+                            c.setFillColorRGB(1, 1, 1)
+                            c.setFont("Helvetica-Oblique", 11)
+                            c.drawString(60, 80, f"Falha ao renderizar página de saída: {e}")
+                    return _onpage
+                
+                # Registrar template para esta página de saída
+                doc.addPageTemplates([
+                    PageTemplate(
+                        id=tid,
+                        frames=[Frame(0, 0, A4[0], A4[1], leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)],
+                        onPage=make_onpage()
+                    )
+                ])
+                
+                # Inserir página de SAÍDA antes do ativo
+                story.append(NextPageTemplate(tid))
+                story.append(PageBreak())
+                story.append(blank)
+                
+                # Voltar para o template do ativo
+                story.append(NextPageTemplate(tpl_id))
+            
+            # Página do ATIVO que entrou
+            story.append(PageBreak())
+            story.append(blank)
+            
+            # Página de NOTÍCIAS do ativo
             story.append(NextPageTemplate(news_tpl_id))
-            story.append(PageBreak()); story.append(blank)          # página de notícias
-            story.append(NextPageTemplate(tpl_id))                  # volta para o template do ativo
+            story.append(PageBreak())
+            story.append(blank)
+            
+            # Voltar para o template do ativo (para o próximo item)
+            story.append(NextPageTemplate(tpl_id))
+
 
     # ---------- Montagem do Story ----------
     Story = []
@@ -972,6 +1011,7 @@ def generate_assembleia_report(
     Story.append(PageBreak())
     Story.append(Paragraph(" ", styles["Normal"]))
     
+
     # ÍNDICE
     if toc_data:
         Story.append(NextPageTemplate("TOC"))
@@ -997,14 +1037,14 @@ def generate_assembleia_report(
         Story.append(NextPageTemplate("Reits_conservadores"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "REIT_CONS", "REIT_CONS_NEWS", reits_cons)
+        add_asset_section_with_exits(Story, "REIT_CONS", "REIT_CONS_NEWS", reits_cons, text_assets, doc)
 
     # ETFs Conservadores
     if etfs_cons:
         Story.append(NextPageTemplate("Etfs_cons"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "ETF_CONS", "ETF_CONS_NEWS", etfs_cons)
+        add_asset_section_with_exits(Story, "ETF_CONS", "ETF_CONS_NEWS", etfs_cons, text_assets, doc)
 
     # Perfil Moderado
     if etfs_mod or stocks_mod:
@@ -1017,14 +1057,14 @@ def generate_assembleia_report(
         Story.append(NextPageTemplate("Etfs_mod"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "ETF_MOD", "ETF_MOD_NEWS", etfs_mod)
+        add_asset_section_with_exits(Story, "ETF_MOD", "ETF_MOD_NEWS", etfs_mod, text_assets, doc)
 
     # Ações Moderadas
     if stocks_mod:
         Story.append(NextPageTemplate("Acoes_moderadas"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "STK_MOD", "STK_MOD_NEWS", stocks_mod)
+        add_asset_section_with_exits(Story, "STK_MOD", "STK_MOD_NEWS", stocks_mod, text_assets, doc)
 
     # Perfil Arrojado
     if etfs_agr or stocks_arj or stocks_opp or smallcaps_arj or hedge or crypto:
@@ -1037,42 +1077,42 @@ def generate_assembleia_report(
         Story.append(NextPageTemplate("Etfs_arr"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "ETF_AGR", "ETF_AGR_NEWS", etfs_agr)
+        add_asset_section_with_exits(Story, "ETF_AGR", "ETF_AGR_NEWS", etfs_agr, text_assets, doc)
 
     # Ações Arrojadas
     if stocks_arj:
         Story.append(NextPageTemplate("Acoes_arrojadas"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "STK_ARJ", "STK_ARJ_NEWS", stocks_arj)
+        add_asset_section_with_exits(Story, "STK_ARJ", "STK_ARJ_NEWS", stocks_arj, text_assets, doc)
 
     # Oportunidades
     if stocks_opp:
         Story.append(NextPageTemplate("Oportunidade"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "STK_OPP", "STK_OPP_NEWS", stocks_opp)
+        add_asset_section_with_exits(Story, "STK_OPP", "STK_OPP_NEWS", stocks_opp, text_assets, doc)
 
     # Small Caps
     if smallcaps_arj:
         Story.append(NextPageTemplate("Small_caps"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "SMCAP_ARJ", "SMCAP_ARJ_NEWS", smallcaps_arj)
+        add_asset_section_with_exits(Story, "SMCAP_ARJ", "SMCAP_ARJ_NEWS", smallcaps_arj, text_assets, doc)
 
     # Hedge
     if hedge:
         Story.append(NextPageTemplate("HEDGE_HDR"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "HEDGE", "HEDGE_NEWS", hedge)
+        add_asset_section_with_exits(Story, "HEDGE", "HEDGE_NEWS", hedge, text_assets, doc)
 
     # Crypto
     if crypto:
         Story.append(NextPageTemplate("Crypto"))
         Story.append(PageBreak())
         Story.append(blank)
-        add_asset_section(Story, "CRP", "CRP_NEWS", crypto)
+        add_asset_section_with_exits(Story, "CRP", "CRP_NEWS", crypto, text_assets, doc)
 
     # ===== PÁGINAS MENSAIS =====
     if _monthly_pages:
@@ -1081,25 +1121,14 @@ def generate_assembleia_report(
         Story.append(PageBreak())
         Story.append(blank)
         
-         # --- PÁGINAS AVULSAS: intervalos customizados (cards brancos) ---
+        # --- PÁGINAS AVULSAS: intervalos customizados (cards brancos) ---
         if custom_range_pages:
             Story.append(NextPageTemplate("CUSTOM_RANGE"))
             Story.append(PageBreak())
             Story.append(blank)
-           
-        # Adicionar cada página dinâmica com seu template específico
-        # for i, page_data in enumerate(_monthly_pages):
-        #     template_id = f"MONTHLY_DYN_{i}"
-            
-        #     Story.append(NextPageTemplate(template_id))
-        #     Story.append(PageBreak())
-        #     Story.append(Paragraph("", styles["Normal"]))  # Conteúdo mínimo para ativar onPage
-            
-   
-    
 
-    # cria a página das trocas
-    add_text_assets(Story, text_assets)
+    # REMOVER ESTA LINHA - não é mais necessária:
+    # add_text_assets(Story, text_assets)
 
     # ---------- Render ----------
     doc.build(Story)

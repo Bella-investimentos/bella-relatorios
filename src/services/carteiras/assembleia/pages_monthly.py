@@ -31,8 +31,6 @@ def draw_monthly_cards_page(c: Canvas, page: Dict[str, Any]):
     rows: List[Dict[str, Any]] = page.get("rows") or []
     label: str = page.get("label") or ""
     
-    print(f"[DEBUG] draw_monthly_cards_page: {len(rows)} rows")
-
     w, h = A4
     
     # Fundo
@@ -77,7 +75,6 @@ def draw_monthly_cards_page(c: Canvas, page: Dict[str, Any]):
     y = top
     count = 0
     
-    # SUBSTITUA o loop principal por esta versão que usa a função _card original:
 
     for r in rows:
         if count >= max_rows:
@@ -112,7 +109,6 @@ def draw_monthly_cards_page(c: Canvas, page: Dict[str, Any]):
         y -= (row_h + gap_y)
         count += 1
 
-# ADICIONE esta função nova no final do arquivo pages_monthly.py:
 
 def _card_with_color(c: Canvas, x, y, w, h, label: str, value: str, label_font_size: int, value_font_size: int, color_rgb: tuple):
     """Card com cor personalizada para borda e texto"""
