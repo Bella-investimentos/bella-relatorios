@@ -152,13 +152,22 @@ def _card_adaptive(c: Canvas, x, y, w, h, label: str, value: str, label_font_siz
     )
     
     
-    #página com os cards que sairam do relatório
+    #página mensal com os cards que sairam do relatório
 
 
-def _card_white(c: Canvas, x, y, w, h, label: str, value: str):
-    """Card com borda e textos brancos (fundo dark do template)."""
-    c.setFillColorRGB(0.06, 0.06, 0.06)   # fundo do card
-    c.setStrokeColorRGB(1, 1, 1)          # borda branca
+BLUE = (0.20, 0.60, 1.00)  # RGB 0-1
+
+def _card_white(
+    c: Canvas, x, y, w, h, label: str, value: str,
+    *,
+    fill_color=(0.06, 0.06, 0.06),      # mantém fundo dark
+    border_color=(1, 1, 1),             # default: borda branca
+    label_color=(1, 1, 1),              # default: texto branco
+    value_color=(1, 1, 1)               # default: texto branco
+):
+    """Card com borda e textos configuráveis (defaults brancos; fundo dark)."""
+    c.setFillColorRGB(*fill_color)
+    c.setStrokeColorRGB(*border_color)
     c.setLineWidth(1)
     c.roundRect(x, y, w, h, MINI_R, stroke=1, fill=1)
 
@@ -171,8 +180,8 @@ def _card_white(c: Canvas, x, y, w, h, label: str, value: str):
         label_font=label_font,
         value_font=value_font,
         pad_top=40,
-        label_color=(1, 1, 1),
-        value_color=(1, 1, 1),
+        label_color=label_color,
+        value_color=value_color,
     )
 
 # --- função principal da página ---
@@ -186,13 +195,17 @@ def draw_custom_range_page_many(
     title: str = "Intervalos Personalizados",
 ):
     """
-    Desenha MÚLTIPLAS páginas com até 10 linhas de cards brancos por página.
-    Cada item do `items` deve conter: symbol, start_date, end_date.
+    Desenha páginas com até 7 linhas, cada linha contendo 6 cards:
+      1) Ativo
+      2) Entrada (preço na data inicial)
+      3) Saída (preço na data final)
+      4) Var.% (Saída vs Entrada)
+      5) Hoje (preço atual)
+      6) Var.% até hoje (Hoje vs Entrada)
     """
-    from reportlab.lib.pagesizes import A4 as _A4
-    w, h = _A4
+    w, h = A4
 
-    # util: parse de datas
+    # util: parse de datas DD/MM/AAAA ou AAAA-MM-DD
     def _parse_date(s: str) -> date:
         s = (s or "").strip()
         for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
@@ -202,21 +215,25 @@ def draw_custom_range_page_many(
                 pass
         raise ValueError(f"Data inválida: {s!r}. Use DD/MM/AAAA ou AAAA-MM-DD.")
 
-    # geometria (mesma estética dos monthly)
+    # geometria (mesma estética base)
     top    = h - 170
     row_h  = 70
     gap_y  = 25
     ch     = 55
-    left   = 50
-    gutter = 10
-    cw     = 120
-    
-    ITEMS_PER_PAGE = 7  # limite de itens por página
 
-    x0 = left
-    x1 = x0 + cw + gutter
-    x2 = x1 + cw + gutter
-    x3 = x2 + cw + gutter
+    # >>> Ajuste p/ caber 6 cards por linha <<<
+    left   = 40          # margem esquerda um pouco menor
+    right  = 40          # margem direita (não precisamos da variável, mas fica documentado)
+    gutter = 8           # espaço entre cards
+    cols   = 6
+    usable = w - (left + right)
+    cw     = (usable - gutter * (cols - 1)) / cols  # largura dinâmica por coluna
+
+    ITEMS_PER_PAGE = 7  # 7 linhas por página
+
+    # posições x das 6 colunas
+    x_positions = [left + i * (cw + gutter) for i in range(cols)]
+    x0, x1, x2, x3, x4, x5 = x_positions
 
     # Processa e valida todos os itens primeiro
     valid_items = []
@@ -224,10 +241,8 @@ def draw_custom_range_page_many(
         symbol = (it.get("symbol") or "").strip().upper()
         d0_str = it.get("start_date") or ""
         d1_str = it.get("end_date") or ""
-        
         if not symbol or not d0_str or not d1_str:
             continue
-
         try:
             d0 = _parse_date(d0_str)
             d1 = _parse_date(d1_str)
@@ -243,55 +258,69 @@ def draw_custom_range_page_many(
 
     # Divide os itens em páginas
     total_items = len(valid_items)
-    total_pages = (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE  # arredonda pra cima
-    
+    total_pages = (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
+
+    # Data "atual" p/ exibir e buscar preço
+    today = date.today()
+    today_str = today.strftime("%d/%m")
+
     for page_num in range(total_pages):
-        # Desenha fundo
+        # Fundo
         try:
             c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=w, height=h)
         except Exception:
             pass
 
-        # Título com número da página se houver mais de uma
+        # Título
         c.setFillColorRGB(1, 1, 1)
         c.setFont("Helvetica-Bold", 16)
-        if total_pages > 1:
-            page_title = f"{title} - Página {page_num + 1}/{total_pages}"
-        else:
-            page_title = title
+        page_title = f"{title} - Página {page_num + 1}/{total_pages}" if total_pages > 1 else title
         c.drawCentredString(w/2, h - 70, page_title)
 
-        # Pega os itens desta página
+        # Itens desta página
         start_idx = page_num * ITEMS_PER_PAGE
-        end_idx = min(start_idx + ITEMS_PER_PAGE, total_items)
+        end_idx   = min(start_idx + ITEMS_PER_PAGE, total_items)
         page_items = valid_items[start_idx:end_idx]
 
         y = top
-        
-        # Desenha os cards desta página
+
         for item_data in page_items:
             symbol = item_data["symbol"]
             d0 = item_data["d0"]
             d1 = item_data["d1"]
 
-            p0 = fetch_price_fn(symbol, d0)
-            p1 = fetch_price_fn(symbol, d1)
+            # preços
+            p0 = fetch_price_fn(symbol, d0)     # entrada
+            p1 = fetch_price_fn(symbol, d1)     # saída
+            pc = fetch_price_fn(symbol, today)  # hoje
+
+            # variação Saída vs Entrada
             chg = None
             if p0 not in (None, 0) and p1 not in (None, 0):
                 chg = ((float(p1) / float(p0)) - 1.0) * 100.0
 
-            p0_txt  = "—" if p0 is None else fmt_currency_usd(p0)
-            p1_txt  = "—" if p1 is None else fmt_currency_usd(p1)
-            chg_txt = "—" if chg is None else f"{chg:+.2f}%" 
+            # variação Hoje vs Entrada
+            chg_today = None
+            if p0 not in (None, 0) and pc not in (None, 0):
+                chg_today = ((float(pc) / float(p0)) - 1.0) * 100.0
 
-            # Linha de 4 cards brancos
+            # textos
+            p0_txt      = "—" if p0 is None else fmt_currency_usd(p0)
+            p1_txt      = "—" if p1 is None else fmt_currency_usd(p1)
+            pc_txt      = "—" if pc is None else fmt_currency_usd(pc)
+            chg_txt     = "—" if chg is None else f"{chg:+.2f}%"
+            chg_td_txt  = "—" if chg_today is None else f"{chg_today:+.2f}%"
+
+            # 6 cards na linha
             _card_white(c, x0, y, cw, ch, "Ativo", symbol)
             _card_white(c, x1, y, cw, ch, f"Entrada {d0.strftime('%d/%m')}", p0_txt)
-            _card_white(c, x2, y, cw, ch, f"Saída em {d1.strftime('%d/%m')}", p1_txt)
-            _card_white(c, x3, y, cw, ch, "Var.%", chg_txt)
+            _card_white(c, x2, y, cw, ch, f"Saída {d1.strftime('%d/%m')}",   p1_txt)
+            _card_white(c, x3, y, cw, ch, "Var.%", chg_txt,border_color=BLUE, label_color=BLUE, value_color=BLUE)
+            _card_white(c, x4, y, cw, ch, f"Hoje {today_str}", pc_txt)
+            _card_white(c, x5, y, cw, ch, "Var.% até hoje", chg_td_txt,border_color=BLUE, label_color=BLUE, value_color=BLUE)
+
 
             y -= (row_h + gap_y)
 
-        # Se não for a última página, cria nova página
         if page_num < total_pages - 1:
             c.showPage()
