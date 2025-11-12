@@ -1,6 +1,6 @@
 # src/services/carteiras/assembleia/builder.py
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 from reportlab.platypus import (
     SimpleDocTemplate, PageTemplate, Frame,
@@ -68,6 +68,168 @@ def draw_back_to_index_button(c: Canvas):
         relative=1,
         Border=[0, 0, 0]
     )
+
+def onpage_allocacao_perfis(c: Canvas, _doc):
+    # Fundo
+    try:
+        c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
+    except Exception:
+        pass
+
+    # Paleta
+    BLUE  = (0.20, 0.60, 1.00)
+    DARK  = (0.06, 0.06, 0.06)
+    WHITE = (1, 1, 1)
+
+    # ===== Helpers =====
+    def draw_justified_text(x, y, w, text, *, font="Helvetica", size=14, leading=20):
+        """
+        Desenha um parágrafo com alinhamento justificado (exceto última linha).
+        Retorna o y final (base) após escrever o parágrafo.
+        """
+        c.setFont(font, size)
+        c.setFillColorRGB(*WHITE)
+        # quebra em palavras
+        words = text.replace("\n", " ").split()
+        lines = []
+        line = ""
+
+        # monta linhas "por largura"
+        for wd in words:
+            test = (line + " " + wd).strip()
+            if c.stringWidth(test, font, size) <= w:
+                line = test
+            else:
+                lines.append(line)
+                line = wd
+        if line:
+            lines.append(line)
+
+        cur_y = y
+        for i, ln in enumerate(lines):
+            # última linha → alinhamento à esquerda normal
+            if i == len(lines) - 1 or " " not in ln:
+                c.drawString(x, cur_y, ln)
+            else:
+                # justificar: distribuir espaços
+                words_ln = ln.split(" ")
+                text_no_spaces = "".join(words_ln)
+                text_w = c.stringWidth(text_no_spaces, font, size)
+                gaps = len(words_ln) - 1
+                if gaps <= 0:
+                    c.drawString(x, cur_y, ln)
+                else:
+                    extra_space_total = w - text_w
+                    space_w = extra_space_total / gaps
+                    # desenha palavra a palavra adicionando espaço calculado
+                    cx = x
+                    for j, wj in enumerate(words_ln):
+                        c.drawString(cx, cur_y, wj)
+                        if j < gaps:
+                            # espaço normal + extra
+                            cx += c.stringWidth(wj, font, size) + space_w
+            cur_y -= leading
+        return cur_y
+
+    def panel(x, y, w, h, title, items):
+        c.setFillColorRGB(*DARK)
+        c.setStrokeColorRGB(*WHITE)
+        c.setLineWidth(1)
+        c.roundRect(x, y, w, h, 10, stroke=1, fill=1)
+
+        c.setFont("Helvetica-Bold", 16)
+        c.setFillColorRGB(*BLUE)
+        c.drawString(x + 18, y + h - 28, title)
+
+        c.setFont("Helvetica", 13)
+        c.setFillColorRGB(1,1,1)
+        line_h = 20
+        cur_y = y + h - 52
+        for it in items:
+            c.drawString(x + 18, cur_y, f"• {it}")
+            cur_y -= line_h
+
+    # ===== Layout e tamanhos =====
+    TITLE_SIZE = 26
+    INTRO_SIZE = 14
+    INTRO_LEAD = 20
+
+    LEFT_M   = 60
+    RIGHT_M  = 60
+    TOP_MARGIN = 120          # ajuste livre da margem superior
+    TOP_Y = A4[1] - TOP_MARGIN
+
+    TITLE_TO_INTRO_GAP  = 40     # + espaço entre título e texto
+    INTRO_TO_PANELS_GAP = 40     # + espaço entre texto e cards
+    COL_GAP  = 16
+    ROW_TOP_H = 165
+    ROW_BOT_H = 185
+
+    # ===== Título =====
+    c.setFillColorRGB(*WHITE)
+    c.setFont("Helvetica-Bold", TITLE_SIZE)
+    c.drawCentredString(A4[0]/2, TOP_Y, "Alocação por Perfil")
+
+    # ===== Intro (justificado) =====
+    intro = (
+        "As classificações a seguir sugerem uma distribuição de ativos por perfil de risco. "
+        "O perfil Conservador prioriza preservação de capital e baixa volatilidade; "
+        "o Moderado busca equilíbrio entre estabilidade e crescimento; "
+        "o Arrojado privilegia retorno potencial aceitando maior oscilação. "
+        "Use estas referências como ponto de partida — a decisão final deve considerar seus objetivos, "
+        "horizonte de investimento e necessidade de liquidez."
+        "OBS: LEMBRANDO QUE ESTAS SÃO APENAS SUGESTÕES DE ALOCAÇÃO, ONDE CADA INVESTIDOR É RESPONSÁVEL POR SUAS DECISÕES DE ACORDO COM SEU PERFIL."
+    )
+
+    intro_x = LEFT_M
+    intro_w = A4[0] - LEFT_M - RIGHT_M
+    intro_top = TOP_Y - TITLE_TO_INTRO_GAP
+    after_intro_y = draw_justified_text(intro_x, intro_top, intro_w, intro, size=INTRO_SIZE, leading=INTRO_LEAD)
+
+    # ===== Cards/Painéis =====
+    
+    conservador = [
+        "50% Bonds/Imóvel",
+        "20% ETF Renda Fixa/Ouro",
+        "20% ETF Moderado/REITs",
+        "10% Ações Blue Chip",
+    ]
+    moderado = [
+        "30% Bonds/Imóvel",
+        "10% ETF Renda Fixa/Ouro",
+        "20% ETF Moderado",
+        "30% Ações (Blue Chip, Médias)",
+        "10% ETF Arrojado/Cripto",
+    ]
+    arrojado = [
+        "30% ETF Renda Fixa/Imóvel",
+        "10% Ouro (Gold)",
+        "10% ETF Moderado",
+        "10% ETF Arrojado",
+        "30% Ações (Blue Chip,Small/Médias)",
+        "10% Cripto",
+    ]
+
+    # posicionamento
+    top_y = after_intro_y - INTRO_TO_PANELS_GAP - ROW_TOP_H
+    usable_w = A4[0] - LEFT_M - RIGHT_M
+    col_w = (usable_w - COL_GAP) / 2
+    left_x = LEFT_M
+    right_x = LEFT_M + col_w + COL_GAP
+
+    # Topo: Conservador | Moderado
+    panel(left_x,  top_y, col_w, ROW_TOP_H, "Conservador", conservador)
+    panel(right_x, top_y, col_w, ROW_TOP_H, "Moderado",    moderado)
+
+    # Abaixo: Arrojado
+    bottom_y = top_y - COL_GAP - ROW_BOT_H
+    panel(LEFT_M, bottom_y, usable_w, ROW_BOT_H, "Arrojado", arrojado)
+
+    # Botão voltar ao índice (opcional)
+    # try:
+    #     draw_back_to_index_button(c)
+    # except Exception:
+    #     pass
 
     
 def generate_assembleia_report(
@@ -562,19 +724,44 @@ def generate_assembleia_report(
         monthly_templates.append(template)
         print(f"[DEBUG] Criado template {template_id} para página {i}")
         
+    def _fetch_latest_or_same(symbol: str, ref_date: date, lookback: int = 7):
+        """
+        Tenta pegar o preço em ref_date; se None/0, volta até 'lookback' dias.
+        Usa 'fetch_price_fn' se houver; caso contrário tenta importar o fetch default.
+        """
+        # escolhe a base de busca
+        base_fetch = fetch_price_fn
+        if base_fetch is None:
+            try:
+                # fallback: usa o fetch padrão se o caller não passou nada
+                from ..assembleia_report import _fetch_close_price as base_fetch
+            except Exception:
+                base_fetch = None
+
+        d = ref_date
+        for _ in range(lookback + 1):
+            p = base_fetch(symbol, d) if base_fetch else None
+            if p not in (None, 0):
+                return p, d
+            d -= timedelta(days=1)
+        return None, None
+
+
     def custom_range_onpage_factory(items: list, fetch_price_fn):
-        """Factory que cria função onPage para desenhar custom ranges"""
-        def _onpage(c: Canvas, _doc):
-            if items:  # se há itens, desenha todos numa página só
+        def _onpage(c, _doc):
+            if items:
                 from .pages_monthly import draw_custom_range_page_many
+
+                def fetch_with_fallback(sym, dt):
+                    price, _ = _fetch_latest_or_same(sym, dt)
+                    return price
+
                 draw_custom_range_page_many(
-                    c, 
-                    items, 
-                    fetch_price_fn=fetch_price_fn,
-                    title="ATIVOS INDICADOS COM ENTRADA E SAÍDA"
+                    c, items,
+                    fetch_price_fn=fetch_with_fallback,
+                    title="ATIVOS INDICADOS COM ENTRADA E SAÍDA",
                 )
             else:
-                # só fundo
                 try:
                     c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=A4[0], height=A4[1])
                 except Exception:
@@ -625,6 +812,7 @@ def generate_assembleia_report(
     # ---------- Templates FIXOS (capas/perfis/headers) ----------
     
     cover_t      = PageTemplate(id="Capa",                frames=[frame], onPage=onpage_capa_with_date)
+    alocacao_t   = PageTemplate(id="ALOCACAO",            frames=[frame], onPage=onpage_allocacao_perfis)
     toc_t        = PageTemplate(id="TOC",                 frames=[frame], onPage=onpage_toc_factory(toc_data))
     news_t       = PageTemplate(id="Noticias",            frames=[frame], onPage=onpage_noticias)
     perfilcons_t = PageTemplate(id="PerfilConservador",   frames=[frame], onPage=onpage_perfil_cons)
@@ -677,7 +865,7 @@ def generate_assembleia_report(
     # ---------- Registrar templates ----------
     templates = [
         
-        cover_t, 
+        cover_t,  alocacao_t,
         toc_t, news_t,
         perfilcons_t, perfilmod_t, perfilarj_t, perfilopp_t,
         etfs_cons_hdr, etfs_mod_hdr, etfs_arr_hdr,
@@ -779,6 +967,11 @@ def generate_assembleia_report(
     # ---------- Montagem do Story ----------
     Story = []
    
+    # 2) Página de Alocação (APÓS a capa)
+    Story.append(NextPageTemplate("ALOCACAO"))
+    Story.append(PageBreak())
+    Story.append(Paragraph(" ", styles["Normal"]))
+    
     # ÍNDICE
     if toc_data:
         Story.append(NextPageTemplate("TOC"))
