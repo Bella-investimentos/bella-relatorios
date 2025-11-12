@@ -236,8 +236,7 @@ def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbo
         stocks_mod=stocks_mod, stocks_arj=stocks_arj, stocks_opp=stocks_opp,
         reits_cons=reits_cons, smallcaps_arj=smallcaps_arj, crypto=crypto, hedge=hedge,
         monthly_rows=monthly_rows, monthly_label=monthly_label, custom_range_pages=custom_ranges,
-        text_assets=text_assets,
-        fetch_price_fn=_fetch_close_price, 
+        text_assets=text_assets, fetch_price_fn=_fetch_close_price, 
     )
 
     # 4) Upload (opcional) e retorno
