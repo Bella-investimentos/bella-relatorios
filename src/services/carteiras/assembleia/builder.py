@@ -77,41 +77,31 @@ def onpage_allocacao_perfis(c: Canvas, _doc):
         pass
 
     # Paleta
-    BLUE  = (0.20, 0.60, 1.00)
-    DARK  = (0.06, 0.06, 0.06)
-    WHITE = (1, 1, 1)
+    YELLOW = (1.00, 0.85, 0.20)
+    BLUE   = (0.20, 0.60, 1.00)
+    GREEN  = (0.25, 0.82, 0.45)
+    DARK   = (0.06, 0.06, 0.06)
+    WHITE  = (1, 1, 1)
 
     # ===== Helpers =====
     def draw_justified_text(x, y, w, text, *, font="Helvetica", size=14, leading=20):
-        """
-        Desenha um parágrafo com alinhamento justificado (exceto última linha).
-        Retorna o y final (base) após escrever o parágrafo.
-        """
         c.setFont(font, size)
         c.setFillColorRGB(*WHITE)
-        # quebra em palavras
         words = text.replace("\n", " ").split()
-        lines = []
-        line = ""
-
-        # monta linhas "por largura"
+        lines, line = [], ""
         for wd in words:
             test = (line + " " + wd).strip()
             if c.stringWidth(test, font, size) <= w:
                 line = test
             else:
-                lines.append(line)
-                line = wd
-        if line:
-            lines.append(line)
+                lines.append(line); line = wd
+        if line: lines.append(line)
 
         cur_y = y
         for i, ln in enumerate(lines):
-            # última linha → alinhamento à esquerda normal
             if i == len(lines) - 1 or " " not in ln:
                 c.drawString(x, cur_y, ln)
             else:
-                # justificar: distribuir espaços
                 words_ln = ln.split(" ")
                 text_no_spaces = "".join(words_ln)
                 text_w = c.stringWidth(text_no_spaces, font, size)
@@ -121,49 +111,50 @@ def onpage_allocacao_perfis(c: Canvas, _doc):
                 else:
                     extra_space_total = w - text_w
                     space_w = extra_space_total / gaps
-                    # desenha palavra a palavra adicionando espaço calculado
                     cx = x
                     for j, wj in enumerate(words_ln):
                         c.drawString(cx, cur_y, wj)
                         if j < gaps:
-                            # espaço normal + extra
                             cx += c.stringWidth(wj, font, size) + space_w
             cur_y -= leading
         return cur_y
 
-    def panel(x, y, w, h, title, items):
-        c.setFillColorRGB(*DARK)
-        c.setStrokeColorRGB(*WHITE)
-        c.setLineWidth(1)
+    def panel(x, y, w, h, title, items, color_rgb):
+        # fundo e borda (borda colorida)
+        c.setFillColorRGB(0.06, 0.06, 0.06)      # DARK
+        c.setStrokeColorRGB(*color_rgb)          # ← cor só na borda
+        c.setLineWidth(1.2)
         c.roundRect(x, y, w, h, 10, stroke=1, fill=1)
 
+        # título (colorido)
         c.setFont("Helvetica-Bold", 16)
-        c.setFillColorRGB(*BLUE)
+        c.setFillColorRGB(*color_rgb)            # ← cor no título
         c.drawString(x + 18, y + h - 28, title)
 
+        # bullets (brancos)
         c.setFont("Helvetica", 13)
-        c.setFillColorRGB(1,1,1)
+        c.setFillColorRGB(1, 1, 1)               # ← branco no conteúdo
         line_h = 20
         cur_y = y + h - 52
         for it in items:
             c.drawString(x + 18, cur_y, f"• {it}")
             cur_y -= line_h
 
+
     # ===== Layout e tamanhos =====
     TITLE_SIZE = 26
-    INTRO_SIZE = 14
+    INTRO_SIZE = 12
     INTRO_LEAD = 20
 
     LEFT_M   = 60
     RIGHT_M  = 60
-    TOP_MARGIN = 120          # ajuste livre da margem superior
+    TOP_MARGIN = 70
     TOP_Y = A4[1] - TOP_MARGIN
 
-    TITLE_TO_INTRO_GAP  = 40     # + espaço entre título e texto
-    INTRO_TO_PANELS_GAP = 40     # + espaço entre texto e cards
-    COL_GAP  = 16
-    ROW_TOP_H = 165
-    ROW_BOT_H = 185
+    TITLE_TO_INTRO_GAP  = 20
+    INTRO_TO_PANELS_GAP = 20
+    PANEL_GAP = 18
+    PANEL_H   = 165  # altura de cada card empilhado
 
     # ===== Título =====
     c.setFillColorRGB(*WHITE)
@@ -177,8 +168,9 @@ def onpage_allocacao_perfis(c: Canvas, _doc):
         "o Moderado busca equilíbrio entre estabilidade e crescimento; "
         "o Arrojado privilegia retorno potencial aceitando maior oscilação. "
         "Use estas referências como ponto de partida — a decisão final deve considerar seus objetivos, "
-        "horizonte de investimento e necessidade de liquidez."
-        "OBS: LEMBRANDO QUE ESTAS SÃO APENAS SUGESTÕES DE ALOCAÇÃO, ONDE CADA INVESTIDOR É RESPONSÁVEL POR SUAS DECISÕES DE ACORDO COM SEU PERFIL."
+        "horizonte de investimento e necessidade de liquidez. "
+        "ESTAS SÃO APENAS SUGESTÕES DE ALOCAÇÃO, ONDE CADA INVESTIDOR É RESPONSÁVEL "
+        "POR SUAS DECISÕES DE ACORDO COM SEU PERFIL."
     )
 
     intro_x = LEFT_M
@@ -186,8 +178,7 @@ def onpage_allocacao_perfis(c: Canvas, _doc):
     intro_top = TOP_Y - TITLE_TO_INTRO_GAP
     after_intro_y = draw_justified_text(intro_x, intro_top, intro_w, intro, size=INTRO_SIZE, leading=INTRO_LEAD)
 
-    # ===== Cards/Painéis =====
-    
+    # ===== Itens =====
     conservador = [
         "50% Bonds/Imóvel",
         "20% ETF Renda Fixa/Ouro",
@@ -206,30 +197,24 @@ def onpage_allocacao_perfis(c: Canvas, _doc):
         "10% Ouro (Gold)",
         "10% ETF Moderado",
         "10% ETF Arrojado",
-        "30% Ações (Blue Chip,Small/Médias)",
+        "30% Ações (Blue Chip, Small/Médias)",
         "10% Cripto",
     ]
 
-    # posicionamento
-    top_y = after_intro_y - INTRO_TO_PANELS_GAP - ROW_TOP_H
+    # ===== Cards empilhados (largura total útil) =====
     usable_w = A4[0] - LEFT_M - RIGHT_M
-    col_w = (usable_w - COL_GAP) / 2
-    left_x = LEFT_M
-    right_x = LEFT_M + col_w + COL_GAP
+    first_y  = after_intro_y - INTRO_TO_PANELS_GAP - PANEL_H
 
-    # Topo: Conservador | Moderado
-    panel(left_x,  top_y, col_w, ROW_TOP_H, "Conservador", conservador)
-    panel(right_x, top_y, col_w, ROW_TOP_H, "Moderado",    moderado)
+    # 1) Conservador (amarelo)
+    panel(LEFT_M, first_y, usable_w, PANEL_H, "Conservador", conservador, YELLOW)
 
-    # Abaixo: Arrojado
-    bottom_y = top_y - COL_GAP - ROW_BOT_H
-    panel(LEFT_M, bottom_y, usable_w, ROW_BOT_H, "Arrojado", arrojado)
+    # 2) Moderado (azul)
+    second_y = first_y - PANEL_GAP - PANEL_H
+    panel(LEFT_M, second_y, usable_w, PANEL_H, "Moderado", moderado, BLUE)
 
-    # Botão voltar ao índice (opcional)
-    # try:
-    #     draw_back_to_index_button(c)
-    # except Exception:
-    #     pass
+    # 3) Arrojado (verde)
+    third_y = second_y - PANEL_GAP - PANEL_H
+    panel(LEFT_M, third_y, usable_w, PANEL_H, "Arrojado", arrojado, GREEN)
 
     
 def generate_assembleia_report(
@@ -291,9 +276,7 @@ def generate_assembleia_report(
         c.setFillColor(white)
         c.drawRightString(A4[0] - 50, 20, f"{data_str}")
         c.setFillColor(black)
-
-    
-    
+  
     def onpage_toc_factory(items: list):
         """
         Desenha uma página (ou mais) de índice categorizado, com headers, subheaders e ativos.
@@ -455,7 +438,6 @@ def generate_assembleia_report(
                     col = 1
         
         return _onpage
-
 
     # ===== MONTAGEM DOS DADOS DO ÍNDICE =====
     def build_toc_data(bonds, reits_cons, etfs_cons, etfs_mod, stocks_mod, 
@@ -661,9 +643,7 @@ def generate_assembleia_report(
                     pass
 
         return _onpage
-
     
-        
     # Substitua TODA a seção monthly no builder.py (desde paginate_monthly até o final da seção)
 
     def paginate_monthly(rows, per_page=8, label: str = ""):
