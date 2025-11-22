@@ -16,7 +16,6 @@ def onpage_capa(c: Canvas, doc):
     w, h = A4
     c.drawImage(img_path(CAPA_IMG), 0, 0, width=w, height=h)
 
-
 def fetch_general_market_news(api_key: str | None, limit: int = 3):
     """
     Busca notícias gerais do mercado americano via FMP.
@@ -60,7 +59,6 @@ def draw_globe_icon(c: Canvas, cx: float, cy: float, size: float = 14):
     # pares “curvos” (aproximações com linhas)
     c.line(cx, cy - r*0.9, cx, cy + r*0.9)
     c.restoreState()
-
 
 def onpage_noticias(c: Canvas, doc):
     # fundo
@@ -205,3 +203,42 @@ def onpage_monthly(c: Canvas, doc):
 def onpage_text_asset(c, doc):
     w, h = A4
     c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=w, height=h)
+    
+def onpage_grafico_juros(c: Canvas, _doc):
+    """Desenha a página final com o gráfico de juros"""
+    # Define dimensões da página no início
+    page_width = A4[0]
+    page_height = A4[1]
+    
+    # Fundo (opcional)
+    try:
+        c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=page_width, height=page_height)
+    except Exception:
+        pass
+    
+    # Desenha a imagem do gráfico
+    try:
+        grafico_path = img_path("grafico_juros.jpg")  # ou .jpg
+        
+        # Margens
+        margin = 50
+        
+        # Calcula tamanho disponível
+        available_width = page_width - (2 * margin)
+        available_height = page_height - (2 * margin)
+        
+        # Desenha a imagem preservando proporção
+        c.drawImage(
+            grafico_path,
+            margin,  # x
+            margin,  # y
+            width=available_width,
+            height=available_height,
+            preserveAspectRatio=True,
+            anchor='c'  # centralizado
+        )
+    except Exception as e:
+        # Se falhar, mostra mensagem de erro
+        c.setFont("Helvetica", 12)
+        c.setFillColorRGB(1, 0, 0)
+        c.drawCentredString(page_width/2, page_height/2, f"Erro ao carregar gráfico: {e}")

@@ -21,8 +21,6 @@ from src.services.carteiras.pdf_generator import generate_pdf_buffer
 from src.services.carteiras.metrics.vr_utils import compute_vr_for_symbol
 from src.services.carteiras.fmp.targets import fetch_price_target_summary
 
-
-
 load_dotenv()
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 

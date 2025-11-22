@@ -3,10 +3,8 @@ from botocore.exceptions import ClientError
 import os
 from io import BytesIO
 
-
 AWS_KEY = os.getenv("AWS_KEY")
 AWS_SECRET = os.getenv("AWS_SECRET")
-
 
 s3 = boto3.client(
     "s3",
