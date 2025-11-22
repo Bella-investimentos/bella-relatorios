@@ -13,7 +13,7 @@ from reportlab.lib.colors import white, black
 
 # Páginas estáticas (capas, perfis, índices, etc.)
 from .pages_static import (
-    onpage_capa, onpage_noticias,
+    onpage_capa, onpage_grafico_juros, onpage_noticias,
     onpage_perfil_cons, onpage_perfil_mod, onpage_perfil_arj, onpage_perfil_opp,
     onpage_etfs_cons, onpage_etfs_mod, onpage_etfs_arr,
     onpage_acao_mod, onpage_acao_arr,
@@ -216,7 +216,6 @@ def onpage_allocacao_perfis(c: Canvas, _doc):
     third_y = second_y - PANEL_GAP - PANEL_H
     panel(LEFT_M, third_y, usable_w, PANEL_H, "Arrojado", arrojado, GREEN)
 
-    
 def generate_assembleia_report(
     bonds: list | None = None,
     etfs_cons: list | None = None,   # ETFs Conservadoras
@@ -256,8 +255,6 @@ def generate_assembleia_report(
     custom_range_pages = custom_range_pages or []
     text_assets = text_assets or []
     
-
-
     # ---------- Doc/Frame básicos ----------
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -624,7 +621,6 @@ def generate_assembleia_report(
                         pass
         return _onpage
 
-
     def news_onpage_factory(items: list):
         """
         Usa o símbolo/nome do item corrente para montar a página de notícias.
@@ -719,9 +715,7 @@ def generate_assembleia_report(
                 return p, d
             d -= timedelta(days=1)
         return None, None
-
-
-                
+               
     def custom_range_onpage_factory(items: list, fetch_price_fn):
         def _onpage(c, _doc):
             if items:
@@ -781,9 +775,7 @@ def generate_assembleia_report(
                     draw_back_to_index_button(c)
                     state["i"] += 1
         return _onpage
-
-
-        
+      
     # ---------- Templates FIXOS (capas/perfis/headers) ----------
     
     cover_t      = PageTemplate(id="Capa",                frames=[frame], onPage=onpage_capa_with_date)
@@ -835,8 +827,7 @@ def generate_assembleia_report(
 
     hedge_t          = PageTemplate(id="HEDGE",          frames=[frame], onPage=paged_onpage_factory(draw_hedge_page,    hedge,         ETF_PAGE_BG_IMG))
     hedge_news_t     = PageTemplate(id="HEDGE_NEWS",     frames=[frame], onPage=news_onpage_factory(hedge))
-
-   
+    grafico_juros_t = PageTemplate(id="GRAFICO_JUROS", frames=[frame], onPage=onpage_grafico_juros)
     # ---------- Registrar templates ----------
     templates = [
         
@@ -859,6 +850,7 @@ def generate_assembleia_report(
         monthly_static_t,
         *monthly_templates,
         *custom_range_templates,
+        grafico_juros_t,
     ]
    
     doc.addPageTemplates(templates)
@@ -895,7 +887,6 @@ def generate_assembleia_report(
         antes dos ativos que elas substituem via add_asset_section_with_exits.
         """
         pass  # Mantida vazia para compatibilidade
-
 
     def add_asset_section_with_exits(story, tpl_id: str, news_tpl_id: str, items: list, text_assets: list, doc):
         """
@@ -981,8 +972,6 @@ def generate_assembleia_report(
             
             # Voltar para o template do ativo (para o próximo item)
             story.append(NextPageTemplate(tpl_id))
-
-
     # ---------- Montagem do Story ----------
     Story = []
    
@@ -991,7 +980,6 @@ def generate_assembleia_report(
     Story.append(PageBreak())
     Story.append(Paragraph(" ", styles["Normal"]))
     
-
     # ÍNDICE
     if toc_data:
         Story.append(NextPageTemplate("TOC"))
@@ -1094,18 +1082,29 @@ def generate_assembleia_report(
         Story.append(blank)
         add_asset_section_with_exits(Story, "CRP", "CRP_NEWS", crypto, text_assets, doc)
 
-    # ===== PÁGINAS MENSAIS =====
-    if _monthly_pages:
-        # Página estática (header)
+    if monthly_rows or custom_range_pages:
+        # Página estática (header "Resumo")
         Story.append(NextPageTemplate("MONTHLY_STATIC"))
         Story.append(PageBreak())
         Story.append(blank)
         
-        # --- PÁGINAS AVULSAS: intervalos customizados (cards brancos) ---
+        # Páginas dinâmicas dos cards mensais (se houver)
+        if monthly_rows:
+            for i in range(len(_monthly_pages)):
+                template_id = f"MONTHLY_DYN_{i}"
+                Story.append(NextPageTemplate(template_id))
+                Story.append(PageBreak())
+                Story.append(blank)
+        
+        # Páginas de custom_range (se houver)
         if custom_range_pages:
             Story.append(NextPageTemplate("CUSTOM_RANGE"))
             Story.append(PageBreak())
             Story.append(blank)
+            
+    Story.append(NextPageTemplate("GRAFICO_JUROS"))
+    Story.append(PageBreak())
+    Story.append(blank)
 
     # REMOVER ESTA LINHA - não é mais necessária:
     # add_text_assets(Story, text_assets)

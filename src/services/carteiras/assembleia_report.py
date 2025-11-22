@@ -2,8 +2,6 @@
 from typing import Any, Dict, Optional
 from io import BytesIO
 import logging
-
-
 from .assembleia.prep import enrich_payload_with_make_report, fill_auto_notes, append_earnings_notes_auto
 from .assembleia.builder import generate_assembleia_report
 from src.services.s3.aws_s3_service import upload_pdf_to_s3
@@ -62,7 +60,6 @@ def _collect_all_items(enriched: dict) -> list[dict]:
             out.append(it)
     return out
 
-#buscando valores para cards do relatório mensal
 def _find_last_available_close(symbol: str, ref_date: date, max_lookback: int = 7) -> tuple[float | None, date | None]:
     """
     Tenta pegar o close em ref_date. Se não houver (feriado/fds/sem dado),
@@ -75,7 +72,6 @@ def _find_last_available_close(symbol: str, ref_date: date, max_lookback: int = 
             return price, d
         d = d - timedelta(days=1)
     return None, None
-
 
 def _parse_front_date(d) -> date | None:
     """Aceita date ou string (YYYY-MM-DD ou DD/MM/YYYY). Retorna date ou None."""
@@ -91,7 +87,7 @@ def _parse_front_date(d) -> date | None:
             except ValueError:
                 pass
     return None
-#montando os cards mensais
+
 def build_monthly_rows(
     enriched: dict,
     *,
@@ -143,8 +139,6 @@ def build_monthly_rows(
 
     return rows, label
 
- 
-# === abaixo das helpers já existentes ===
 def _group_of_symbol(enriched: dict, sym: str) -> str:
     buckets = [
         ("bonds", "bonds"), ("reits_cons", "reits_cons"),
@@ -169,7 +163,6 @@ def _classification_for_group(group: str) -> str:
     if group in ARJ:  return "Arrojados"
     return "Outros"
 
-
 def _rgb_for_group(group: str) -> tuple[float, float, float]:
     # azul
     if group in ("bonds", "reits_cons", "etfs_cons"):
@@ -179,9 +172,6 @@ def _rgb_for_group(group: str) -> tuple[float, float, float]:
         return (0.10, 0.80, 0.35)
     # vermelho (demais)
     return (1.0, 1.0, 0.0)
-
-
-
 
 def build_report_assembleia_from_payload(payload: Dict[str, Any], selected_symbol: Optional[str] = None) -> BytesIO:
     
