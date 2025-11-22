@@ -151,9 +151,6 @@ def _card_adaptive(c: Canvas, x, y, w, h, label: str, value: str, label_font_siz
         label_color=rgb, value_color=rgb
     )
     
-    
-    #página mensal com os cards que sairam do relatório
-
 
 BLUE = (0.20, 0.60, 1.00)  # RGB 0-1
 
