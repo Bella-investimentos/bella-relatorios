@@ -24,9 +24,6 @@ from src.services.carteiras.fmp.targets import fetch_price_target_summary
 load_dotenv()
 FMP_API_KEY = os.getenv("FMP_API_KEY")
 
-# =========================
-# Cálculos e gráficos
-# =========================
 def _last_friday_for_weekly_change(d: date) -> date:
     if d.weekday() == 4:          # se hoje for sexta, usar a sexta ANTERIOR
         d = d - timedelta(days=7)
