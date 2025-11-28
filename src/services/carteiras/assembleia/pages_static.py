@@ -206,39 +206,56 @@ def onpage_text_asset(c, doc):
     
 def onpage_grafico_juros(c: Canvas, _doc):
     """Desenha a página final com o gráfico de juros"""
-    # Define dimensões da página no início
-    page_width = A4[0]
-    page_height = A4[1]
-    
-    # Fundo (opcional)
+    page_width, page_height = A4
+
+    # Fundo
     try:
-        c.drawImage(img_path(ETF_PAGE_BG_IMG), 0, 0, width=page_width, height=page_height)
+        c.drawImage(
+            img_path(ETF_PAGE_BG_IMG),
+            0,
+            0,
+            width=page_width,
+            height=page_height
+        )
     except Exception:
         pass
-    
-    # Desenha a imagem do gráfico
+
+    # ===== TÍTULO =====
+    c.setFillColorRGB(1, 1, 1)  # branco
+    c.setFont("Helvetica-Bold", 40)
+
+    # Desce um pouco o título (mais perto do centro)
+    title_y = page_height - 200  # antes era ~ -70
+    c.drawCentredString(page_width / 2, title_y, "Juros Futuros")
+
+    # ===== IMAGEM DO GRÁFICO =====
     try:
-        grafico_path = img_path("grafico_juros.jpg")  # ou .jpg
-        
-        # Margens
-        margin = 50
-        
-        # Calcula tamanho disponível
-        available_width = page_width - (2 * margin)
-        available_height = page_height - (2 * margin)
-        
-        # Desenha a imagem preservando proporção
+        grafico_path = img_path("grafico_juros.jpg")  # ou .png
+
+        # Margens – aumentei o bottom pra subir o gráfico
+        left_margin   = 40
+        right_margin  = 40
+        bottom_margin = 300   # ↑ sobe o gráfico
+        top_margin    = 140  # espaço acima do gráfico (abaixo do título)
+
+        available_width  = page_width  - left_margin - right_margin
+        available_height = page_height - top_margin  - bottom_margin
+
         c.drawImage(
             grafico_path,
-            margin,  # x
-            margin,  # y
+            left_margin,       # x (mantém alinhado como antes)
+            bottom_margin,     # y (um pouco mais alto)
             width=available_width,
             height=available_height,
             preserveAspectRatio=True,
-            anchor='c'  # centralizado
+            anchor='sw'        # canto inferior esquerdo
         )
+
     except Exception as e:
-        # Se falhar, mostra mensagem de erro
         c.setFont("Helvetica", 12)
         c.setFillColorRGB(1, 0, 0)
-        c.drawCentredString(page_width/2, page_height/2, f"Erro ao carregar gráfico: {e}")
+        c.drawCentredString(
+            page_width / 2,
+            page_height / 2,
+            f"Erro ao carregar gráfico: {e}"
+        )
