@@ -1106,9 +1106,6 @@ def generate_assembleia_report(
     Story.append(PageBreak())
     Story.append(blank)
 
-    # REMOVER ESTA LINHA - não é mais necessária:
-    # add_text_assets(Story, text_assets)
-
     # ---------- Render ----------
     doc.build(Story)
     buffer.seek(0)
